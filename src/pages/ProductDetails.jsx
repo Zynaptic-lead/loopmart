@@ -10,8 +10,6 @@ import {
   Phone, 
   ChevronLeft,
   ChevronRight,
-  Pause,
-  Play,
   Store,
   X
 } from 'lucide-react';
@@ -163,7 +161,6 @@ const triggerConnectionNotification = async (product, navigate, setIsLoading, to
   if (setIsLoading) setIsLoading(true);
 
   try {
-    // Try to send engagement
     try {
       const response = await fetch(`https://loopmart.ng/api/v1/product/engagement`, {
         method: 'POST',
@@ -178,15 +175,13 @@ const triggerConnectionNotification = async (product, navigate, setIsLoading, to
         })
       });
       
-      const data = await response.json();
-      console.log('Engagement response:', data);
+      await response.json();
     } catch (error) {
       console.log('Engagement endpoint failed, continuing anyway');
     }
     
     toast?.success('Interest sent! Seller will contact you.');
     
-    // Create notification in localStorage
     const notificationId = `connect-${product.id}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     
     const notification = {
@@ -211,12 +206,10 @@ const triggerConnectionNotification = async (product, navigate, setIsLoading, to
       action: 'connect'
     };
 
-    // Dispatch event for header to pick up
     window.dispatchEvent(new CustomEvent('add-notification', {
       detail: notification
     }));
 
-    // Save to localStorage
     try {
       const existing = JSON.parse(localStorage.getItem('loopmart_notifications') || '[]');
       const updated = [notification, ...existing];
@@ -255,199 +248,215 @@ export default function ProductDetails() {
 
   const AUTO_SLIDE_INTERVAL = 5000;
   
-  // Use a ref to track if the component is mounted and if fetch has been done
   const isMounted = useRef(true);
   const fetchAttempted = useRef(false);
+  const initialId = useRef(id);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       isMounted.current = false;
     };
   }, []);
 
-  // Fetch product function - only runs once
-  const fetchProduct = useCallback(async () => {
-    // Prevent multiple fetches
-    if (fetchAttempted.current) {
-      console.log('Fetch already attempted, skipping');
-      return;
-    }
+  useEffect(() => {
+    console.log('ProductDetails mounted/updated with id:', id);
     
-    fetchAttempted.current = true;
-    
-    if (!id) {
-      if (isMounted.current) {
-        setError('No product ID provided');
-        setLoading(false);
-      }
-      return;
-    }
-
-    try {
-      if (isMounted.current) setLoading(true);
-      if (isMounted.current) setError(null);
-      
-      console.log(`Fetching product with ID: ${id} from allproducts`);
-      
-      // Fetch all products
-      const response = await fetch(`${API_URL}/allproduct`);
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+    const fetchProduct = async () => {
+      // Prevent multiple fetches for the same ID
+      if (fetchAttempted.current && initialId.current === id) {
+        console.log('Fetch already attempted for this ID, skipping');
+        return;
       }
       
-      const allProducts = await response.json();
+      fetchAttempted.current = true;
+      initialId.current = id;
       
-      if (!Array.isArray(allProducts)) {
-        throw new Error('Invalid response format');
-      }
-      
-      console.log(`Total products received: ${allProducts.length}`);
-      
-      // Find the product by ID
-      const foundProduct = allProducts.find(item => {
-        const itemId = item.id?.toString();
-        const itemProductId = item.product_id?.toString();
-        const searchId = id.toString();
-        
-        return itemId === searchId || itemProductId === searchId;
-      });
-      
-      if (!foundProduct) {
-        console.log('Product not found in the list');
+      if (!id) {
         if (isMounted.current) {
-          setError('Product not found');
+          setError('No product ID provided');
           setLoading(false);
         }
         return;
       }
-      
-      console.log('Product found:', foundProduct);
-      
-      // Process images
-      let productImages = [];
+
       try {
-        if (foundProduct.image_url) {
-          if (typeof foundProduct.image_url === 'string' && foundProduct.image_url.startsWith('[')) {
-            const parsed = JSON.parse(foundProduct.image_url);
-            if (Array.isArray(parsed)) {
-              productImages = parsed.map(img => getImageUrl(img));
-            }
-          } else {
-            productImages = [getImageUrl(foundProduct.image_url)];
-          }
-        } else if (foundProduct.image) {
-          productImages = [getImageUrl(foundProduct.image)];
-        } else if (foundProduct.photo) {
-          productImages = [getImageUrl(foundProduct.photo)];
-        }
-      } catch (error) {
-        console.log('Error parsing images:', error);
-      }
-
-      if (productImages.length === 0) {
-        productImages = ['https://via.placeholder.com/600x400?text=No+Image'];
-      }
-
-      const actualPrice = foundProduct.actual_price ? parseFloat(foundProduct.actual_price) : 0;
-      const promoPrice = foundProduct.promo_price ? parseFloat(foundProduct.promo_price) : null;
-      const hasPromo = promoPrice && promoPrice < actualPrice;
-
-      const transformedProduct = {
-        id: foundProduct.id || foundProduct.product_id || parseInt(id),
-        name: foundProduct.title || foundProduct.name || foundProduct.product_name || "Unnamed Product",
-        price: foundProduct.ask_for_price ? "Contact Seller" : (hasPromo ? `₦${promoPrice?.toLocaleString()}` : `₦${actualPrice.toLocaleString()}`),
-        actual_price: actualPrice > 0 ? `₦${actualPrice.toLocaleString()}` : "",
-        promo_price: promoPrice ? `₦${promoPrice?.toLocaleString()}` : "",
-        condition: foundProduct.condition || "Unknown",
-        category: foundProduct.category || foundProduct.product_category || "Others",
-        seller_verified: foundProduct.badge_status === "1" || foundProduct.verify_status === "1" || false,
-        location: foundProduct.location || foundProduct.product_location || "Unknown",
-        ask_for_price: foundProduct.ask_for_price || false,
-        description: foundProduct.description || foundProduct.product_description || "No description available.",
-        seller_id: foundProduct.seller_id || foundProduct.user_id || 0,
-        created_at: foundProduct.created_at || new Date().toISOString(),
-        updated_at: foundProduct.updated_at || new Date().toISOString(),
-        seller_name: foundProduct.seller_name || "Anonymous Seller",
-        seller_phone: foundProduct.phone_number || foundProduct.phone || '',
-        image: productImages[0]
-      };
-
-      console.log('Setting product state:', transformedProduct);
-      
-      if (isMounted.current) {
-        setProduct(transformedProduct);
-        setImages(productImages);
-        setSellerPhone(foundProduct.phone_number || foundProduct.phone || '');
-        setLoading(false);
-      }
-      
-      // Get related products (excluding current product)
-      const currentCategory = foundProduct.category || foundProduct.product_category;
-      const currentId = foundProduct.id || foundProduct.product_id;
-      
-      const related = allProducts
-        .filter(item => {
-          const itemCategory = item.category || item.product_category;
-          const itemId = item.id || item.product_id;
-          return itemCategory === currentCategory && 
-                 itemId && itemId.toString() !== currentId?.toString();
-        })
-        .slice(0, 4)
-        .map(item => {
-          let img = '';
-          try {
-            if (item.image_url) {
-              if (typeof item.image_url === 'string' && item.image_url.startsWith('[')) {
-                const parsed = JSON.parse(item.image_url);
-                if (Array.isArray(parsed) && parsed[0]) {
-                  img = getImageUrl(parsed[0]);
-                }
-              } else {
-                img = getImageUrl(item.image_url);
-              }
-            } else if (item.image) {
-              img = getImageUrl(item.image);
-            }
-          } catch (error) {
-            img = 'https://via.placeholder.com/200x150?text=No+Image';
-          }
-          
-          return {
-            id: item.id || item.product_id,
-            name: item.title || item.name || item.product_name || "Unnamed Product",
-            price: item.ask_for_price ? "Contact Seller" : `₦${(item.actual_price ? parseFloat(item.actual_price) : 0).toLocaleString()}`,
-            image: img || 'https://via.placeholder.com/200x150?text=No+Image',
-            condition: item.condition || "Unknown",
-            location: item.location || item.product_location || "Unknown"
-          };
-        })
-        .filter(p => p.id);
+        if (isMounted.current) setLoading(true);
         
-      if (isMounted.current) {
-        setRelatedProducts(related);
-      }
-      console.log('Related products set:', related.length);
-      
-    } catch (error) {
-      console.error('Error fetching product:', error);
-      if (isMounted.current) {
-        setError('Failed to load product');
-        setLoading(false);
-      }
-    }
-  }, [id]);
+        console.log(`Fetching product with ID: ${id} from allproducts`);
+        
+        const response = await fetch(`${API_URL}/allproduct`);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const allProducts = await response.json();
+        
+        if (!Array.isArray(allProducts)) {
+          throw new Error('Invalid response format');
+        }
+        
+        console.log(`Total products received: ${allProducts.length}`);
+        
+        const foundProduct = allProducts.find(item => {
+          const itemId = item.id?.toString();
+          const itemProductId = item.product_id?.toString();
+          const searchId = id.toString();
+          
+          const match = itemId === searchId || itemProductId === searchId;
+          if (match) {
+            console.log(`Found match: id=${itemId}, product_id=${itemProductId}`);
+          }
+          return match;
+        });
+        
+        if (!foundProduct) {
+          console.log('Product not found in the list');
+          if (isMounted.current) {
+            setError('Product not found');
+            setLoading(false);
+          }
+          return;
+        }
+        
+        console.log('Product found:', foundProduct);
+        
+        let productImages = [];
+        try {
+          if (foundProduct.image_url) {
+            if (typeof foundProduct.image_url === 'string' && foundProduct.image_url.startsWith('[')) {
+              const parsed = JSON.parse(foundProduct.image_url);
+              if (Array.isArray(parsed)) {
+                productImages = parsed.map(img => getImageUrl(img));
+              }
+            } else {
+              productImages = [getImageUrl(foundProduct.image_url)];
+            }
+          } else if (foundProduct.image) {
+            productImages = [getImageUrl(foundProduct.image)];
+          } else if (foundProduct.photo) {
+            productImages = [getImageUrl(foundProduct.photo)];
+          }
+        } catch (error) {
+          console.log('Error parsing images:', error);
+        }
 
-  // Call fetchProduct once on mount
-  useEffect(() => {
-    console.log('ProductDetails mounted with id:', id);
+        if (productImages.length === 0) {
+          productImages = ['https://via.placeholder.com/600x400?text=No+Image'];
+        }
+
+        const actualPrice = foundProduct.actual_price ? parseFloat(foundProduct.actual_price) : 0;
+        const promoPrice = foundProduct.promo_price ? parseFloat(foundProduct.promo_price) : null;
+        const hasPromo = promoPrice && promoPrice < actualPrice;
+
+        const transformedProduct = {
+          id: foundProduct.id || foundProduct.product_id || parseInt(id),
+          name: foundProduct.title || foundProduct.name || foundProduct.product_name || "Unnamed Product",
+          price: foundProduct.ask_for_price ? "Contact Seller" : (hasPromo ? `₦${promoPrice?.toLocaleString()}` : `₦${actualPrice.toLocaleString()}`),
+          actual_price: actualPrice > 0 ? `₦${actualPrice.toLocaleString()}` : "",
+          promo_price: promoPrice ? `₦${promoPrice?.toLocaleString()}` : "",
+          condition: foundProduct.condition || "Unknown",
+          category: foundProduct.category || foundProduct.product_category || "Others",
+          seller_verified: foundProduct.badge_status === "1" || foundProduct.verify_status === "1" || false,
+          location: foundProduct.location || foundProduct.product_location || "Unknown",
+          ask_for_price: foundProduct.ask_for_price || false,
+          description: foundProduct.description || foundProduct.product_description || "No description available.",
+          seller_id: foundProduct.seller_id || foundProduct.user_id || 0,
+          created_at: foundProduct.created_at || new Date().toISOString(),
+          updated_at: foundProduct.updated_at || new Date().toISOString(),
+          seller_name: foundProduct.seller_name || "Anonymous Seller",
+          seller_phone: foundProduct.phone_number || foundProduct.phone || '',
+          image: productImages[0]
+        };
+
+        console.log('Setting product state:', transformedProduct);
+        
+        if (isMounted.current) {
+          setProduct(transformedProduct);
+          setImages(productImages);
+          setSellerPhone(foundProduct.phone_number || foundProduct.phone || '');
+          setError(null);
+          setLoading(false);
+          console.log('Loading set to false');
+        }
+        
+        const currentCategory = foundProduct.category || foundProduct.product_category;
+        const currentId = foundProduct.id || foundProduct.product_id;
+        
+        const related = allProducts
+          .filter(item => {
+            const itemCategory = item.category || item.product_category;
+            const itemId = item.id || item.product_id;
+            return itemCategory === currentCategory && 
+                   itemId && itemId.toString() !== currentId?.toString();
+          })
+          .slice(0, 4)
+          .map(item => {
+            let img = '';
+            try {
+              if (item.image_url) {
+                if (typeof item.image_url === 'string' && item.image_url.startsWith('[')) {
+                  const parsed = JSON.parse(item.image_url);
+                  if (Array.isArray(parsed) && parsed[0]) {
+                    img = getImageUrl(parsed[0]);
+                  }
+                } else {
+                  img = getImageUrl(item.image_url);
+                }
+              } else if (item.image) {
+                img = getImageUrl(item.image);
+              }
+            } catch (error) {
+              img = 'https://via.placeholder.com/200x150?text=No+Image';
+            }
+            
+            return {
+              id: item.id || item.product_id,
+              name: item.title || item.name || item.product_name || "Unnamed Product",
+              price: item.ask_for_price ? "Contact Seller" : `₦${(item.actual_price ? parseFloat(item.actual_price) : 0).toLocaleString()}`,
+              image: img || 'https://via.placeholder.com/200x150?text=No+Image',
+              condition: item.condition || "Unknown",
+              location: item.location || item.product_location || "Unknown"
+            };
+          })
+          .filter(p => p.id);
+          
+        if (isMounted.current) {
+          setRelatedProducts(related);
+        }
+        console.log('Related products set:', related.length);
+        
+      } catch (error) {
+        console.error('Error fetching product:', error);
+        if (isMounted.current) {
+          setError('Failed to load product');
+          setLoading(false);
+        }
+      }
+    };
+
     fetchProduct();
-    
-    // No cleanup needed here as we have the isMounted ref
-  }, [id, fetchProduct]);
 
-  // Carousel functions
+    // Safety timeout
+    const timeoutId = setTimeout(() => {
+      if (isMounted.current && loading) {
+        console.log('Safety timeout triggered');
+        setLoading(false);
+        if (!product) {
+          setError('Product took too long to load. Please try again.');
+        }
+      }
+    }, 15000);
+
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, [id]); // Only depend on id
+
+  useEffect(() => {
+    console.log('State updated - loading:', loading, 'product:', product ? 'exists' : 'null', 'error:', error);
+  }, [loading, product, error]);
+
   const nextImage = useCallback(() => {
     if (images.length <= 1 || isTransitioning) return;
     setIsTransitioning(true);
@@ -502,8 +511,14 @@ export default function ProductDetails() {
 
   const handleRetry = () => {
     fetchAttempted.current = false;
-    fetchProduct();
+    setError(null);
+    setLoading(true);
+    setProduct(null);
+    // Trigger re-fetch by forcing a re-render with same id
+    initialId.current = null;
   };
+
+  console.log('Rendering with state - loading:', loading, 'product:', !!product, 'error:', error);
 
   if (loading) {
     return (
@@ -511,6 +526,7 @@ export default function ProductDetails() {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-500 mx-auto mb-4"></div>
           <p className="text-gray-600">Loading product details...</p>
+          <p className="text-xs text-gray-400 mt-2">Please wait while we fetch the product</p>
         </div>
       </div>
     );
@@ -573,7 +589,6 @@ export default function ProductDetails() {
       </header>
 
       <div className="px-3 md:px-4 py-4 md:py-8 max-w-7xl mx-auto">
-        {/* Mobile Top Info */}
         <div className="sm:hidden mb-4 bg-white rounded-lg shadow-sm border p-4">
           <h1 className="text-lg font-bold text-gray-800 mb-2 line-clamp-2">{product.name}</h1>
           <div className="flex items-center justify-between mb-3">
@@ -592,7 +607,6 @@ export default function ProductDetails() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-8">
-          {/* Image Gallery */}
           <div className="space-y-3 md:space-y-4">
             <div className="bg-white rounded-lg md:rounded-xl shadow-sm border p-2 md:p-4 relative group">
               <div className="relative overflow-hidden rounded-lg bg-gray-100 h-64 md:h-80 lg:h-96">
@@ -660,7 +674,6 @@ export default function ProductDetails() {
             )}
           </div>
 
-          {/* Product Details */}
           <div className="space-y-4 md:space-y-6">
             <div className="hidden sm:block bg-white rounded-lg md:rounded-xl shadow-sm border p-4 md:p-6">
               <div className="flex flex-col md:flex-row md:items-start justify-between mb-3 md:mb-4 gap-3">
@@ -798,7 +811,6 @@ export default function ProductDetails() {
         )}
       </div>
 
-      {/* WhatsApp Modal */}
       <WhatsAppModal
         isOpen={showWhatsAppModal}
         onClose={() => setShowWhatsAppModal(false)}

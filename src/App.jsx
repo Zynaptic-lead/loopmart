@@ -11,8 +11,14 @@ import SellingSuccessPage from './pages/SellingSuccessPage'
 import StartSelling from './pages/StartSelling'
 import ShopPage from './pages/ShopPage';
 import DashboardPage from './pages/DashboardPage'
-// Remove this line: import ReviewPromptModal from '../src/components/ReviewPromptModal';
-import ProtectedRoute from './components/ProtectedRoute' 
+import ProtectedRoute from './components/ProtectedRoute'
+
+// Import new auth pages
+import LoginPage from './pages/LoginPage'
+import RegisterPage from './pages/RegisterPage'
+import ForgotPasswordPage from './pages/ForgotPasswordPage'
+import ResetPasswordPage from './pages/ResetPasswordPage'
+import VerifyOtpPage from './pages/VerifyOtpPage'
 
 function App() {
   return (
@@ -27,6 +33,13 @@ function App() {
                 <Route path="/pricing" element={<PricingPage />} />
                 <Route path="/products/:id" element={<ProductDetails />} />
                 <Route path="/shop/:slug" element={<ShopPage />} />
+                
+                {/* Auth routes */}
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/register" element={<RegisterPage />} />
+                <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+                <Route path="/reset-password" element={<ResetPasswordPage />} />
+                <Route path="/verify-otp" element={<VerifyOtpPage />} />
                 
                 {/* Protected routes - require login */}
                 <Route path="/notifications" element={

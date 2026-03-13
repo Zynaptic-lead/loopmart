@@ -1,13 +1,18 @@
+// pages/CategoriesSection.jsx
 import React, { useRef, useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from 'react-router-dom';
 import {
   ChevronLeft, ChevronRight, MapPin, X, ChevronDown,
-  ArrowRight, Store, Info, Filter, Star
+  ArrowRight, Store, Info, Filter, CheckCircle
 } from "lucide-react";
 import { FaFilter } from "react-icons/fa";
 import { MdVerified } from "react-icons/md";
+import { useSubscription } from '../contexts/SubscriptionContext';
 import logo from '../assets/logo.png';
-import ReviewPromptModal from './ReviewPromptModal' // Import the review modal
+import ReviewPromptModal from './ReviewPromptModal';
+
+// API Base URL
+const API_URL = import.meta.env.VITE_API_URL || 'https://loopmart.ng/api';
 
 // Categories data
 const categories = [
@@ -32,9 +37,6 @@ const NIGERIAN_STATES = [
   "Yobe", "Zamfara"
 ];
 
-// API Base URL from environment
-const API_URL = import.meta.env.VITE_API_URL || 'https://loopmart.ng/api';
-
 // Helper functions
 const getImageUrl = (imagePath) => {
   if (!imagePath) return "https://via.placeholder.com/300x200?text=No+Image";
@@ -52,146 +54,34 @@ const getConditionBadgeColor = (condition) => {
   }
 };
 
-// Shared notification logic
-const getUserDataFromStorage = () => {
-  try {
-    const userDataString = localStorage.getItem('loopmart_user');
-    const token = localStorage.getItem('loopmart_token');
-
-    if (!userDataString || !token) return null;
-
-    const userData = JSON.parse(userDataString);
-
-    return {
-      userId: userData.id,
-      token,
-      name: userData.name || userData.username,
-      email: userData.email
-    };
-  } catch (e) {
-    console.error('Error parsing user data:', e);
-    return null;
-  }
+// Toast notification helper
+const showToast = (type, message, title, action = null) => {
+  window.dispatchEvent(new CustomEvent('show-toast', {
+    detail: {
+      type,
+      message,
+      title,
+      duration: 5000,
+      action
+    }
+  }));
 };
 
-const triggerConnectionNotification = async (product, navigate, setIsLoading) => {
-  console.log('Starting connection process for:', product?.name);
-
-  const userData = getUserDataFromStorage();
-
-  if (!userData?.token) {
-    window.dispatchEvent(new CustomEvent('show-toast', {
-      detail: {
-        type: 'warning',
-        message: 'Please login to connect with seller',
-        title: 'Login Required'
-      }
-    }));
-    navigate('/login');
-    return false;
-  }
-
-  if (setIsLoading) setIsLoading(true);
-
+// Get user data from storage
+const getUserData = () => {
   try {
-    const response = await fetch(`${API_URL}/v1/product/engagement`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${userData.token}`,
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      },
-      body: JSON.stringify({
-        product_id: product.id,
-        user_id: userData.userId
-      })
-    });
-
-    const data = await response.json();
-
-    if (data.status === true || data.success === true) {
-      const notificationId = `connect-${product.id}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-
-      const notification = {
-        id: notificationId,
-        userId: userData.userId,
-        productId: product.id,
-        productName: product.name,
-        title: 'Interest Sent! ✅',
-        message: `Your interest in "${product.name}" has been sent. Seller will contact you soon.`,
-        type: 'success',
-        read: false,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        product: {
-          id: product.id,
-          name: product.name,
-          image: product.image || '',
-          price: product.price || 'N/A'
-        },
-        isRealNotification: true,
-        source: 'user-action',
-        action: 'connect'
-      };
-
-      window.dispatchEvent(new CustomEvent('add-notification', {
-        detail: notification
-      }));
-
-      // Save to localStorage
-      try {
-        const existing = JSON.parse(localStorage.getItem('loopmart_notifications') || '[]');
-        const updated = [notification, ...existing];
-        localStorage.setItem('loopmart_notifications', JSON.stringify(updated.slice(0, 100)));
-      } catch (error) {
-        console.error('localStorage error:', error);
-      }
-
-      window.dispatchEvent(new CustomEvent('show-toast', {
-        detail: {
-          type: 'success',
-          message: `Interest sent! Seller will contact you.`,
-          title: 'Success! 🎯',
-          duration: 5000
-        }
-      }));
-
-      return true;
-    } else {
-      window.dispatchEvent(new CustomEvent('show-toast', {
-        detail: {
-          type: 'error',
-          message: data.message || 'Failed to send interest. Please try again.',
-          title: 'Error'
-        }
-      }));
-      return false;
-    }
-  } catch (error) {
-    console.error('Connection error:', error);
-
-    let errorMessage = 'Network error. Please check your connection.';
-
-    if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
-      errorMessage = 'Network error. Please check your internet connection.';
-    } else if (error.response?.status === 401) {
-      errorMessage = 'Please login again.';
-      localStorage.removeItem('loopmart_token');
-      localStorage.removeItem('loopmart_user');
-      setTimeout(() => navigate('/login'), 1500);
-    }
-
-    window.dispatchEvent(new CustomEvent('show-toast', {
-      detail: {
-        type: 'error',
-        message: errorMessage,
-        title: 'Error'
-      }
-    }));
-
-    return false;
-  } finally {
-    if (setIsLoading) setIsLoading(false);
+    const userData = localStorage.getItem('loopmart_user');
+    const token = localStorage.getItem('loopmart_token');
+    
+    if (!userData || !token) return null;
+    
+    return {
+      ...JSON.parse(userData),
+      token
+    };
+  } catch (e) {
+    console.error('Error getting user data:', e);
+    return null;
   }
 };
 
@@ -238,8 +128,7 @@ const ProductCard = ({ product, onProductClick, onConnectClick, isConnecting = f
         )}
 
         {!isSold && (
-          <div className={`absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center transition-all duration-500 ${isHovered ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
-            }`}>
+          <div className={`absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center transition-all duration-500 ${isHovered ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}>
             <button
               onClick={(e) => onConnectClick(e, product)}
               disabled={isConnecting}
@@ -392,9 +281,55 @@ const MobileProductCard = ({ product, onProductClick, onConnectClick, isConnecti
   );
 };
 
+// Subscription Status Banner Component
+const SubscriptionStatusBanner = ({ hasSubscription, onSubscribe }) => {
+  if (hasSubscription) {
+    return (
+      <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+        <div className="flex items-center gap-3">
+          <CheckCircle className="text-green-500" size={20} />
+          <div className="flex-1">
+            <p className="text-green-800 font-medium">
+              You have an active subscription! You can connect with sellers and add products.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div className="flex items-center gap-3">
+          <Info className="text-yellow-500" size={20} />
+          <div>
+            <p className="text-yellow-800 font-medium">
+              Subscription required to connect with sellers and add products
+            </p>
+            <p className="text-sm text-yellow-600">
+              Get access to all features with a monthly or yearly plan
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={onSubscribe}
+          className="px-6 py-2 bg-yellow-500 text-black font-semibold rounded-lg hover:bg-yellow-600 transition-all duration-300 whitespace-nowrap"
+        >
+          Subscribe Now
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// Main Component
 export default function CategoriesSection() {
   const navigate = useNavigate();
   const scrollRef = useRef(null);
+  
+  // Subscription context
+  const { hasSubscription, checkSubscription, loading: subscriptionLoading } = useSubscription();
 
   // State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -413,12 +348,15 @@ export default function CategoriesSection() {
   const [showCategories, setShowCategories] = useState(false);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [isConnecting, setIsConnecting] = useState(null);
-  
-  // Add these states for the review modal
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [connectedProduct, setConnectedProduct] = useState(null);
 
-  // Fetch products from API using environment variable
+  // Check subscription on mount
+  useEffect(() => {
+    checkSubscription();
+  }, [checkSubscription]);
+
+  // Fetch products
   useEffect(() => {
     const fetchProducts = async () => {
       try {
@@ -486,13 +424,7 @@ export default function CategoriesSection() {
         setFilteredProducts(transformedProducts);
       } catch (error) {
         console.error("Error fetching products:", error);
-        window.dispatchEvent(new CustomEvent('show-toast', {
-          detail: {
-            type: 'error',
-            message: 'Failed to load products. Please refresh the page.',
-            title: 'Error'
-          }
-        }));
+        showToast('error', 'Failed to load products. Please refresh the page.', 'Error');
       } finally {
         setLoading(false);
       }
@@ -501,7 +433,7 @@ export default function CategoriesSection() {
     fetchProducts();
   }, []);
 
-  // Filter products with useMemo for performance
+  // Filter products
   const filteredProductsMemo = useMemo(() => {
     let filtered = products;
 
@@ -534,11 +466,12 @@ export default function CategoriesSection() {
     return filtered;
   }, [products, selectedCategory, filters, selectedState]);
 
-  // Update filtered products when memoized value changes
+  // Update filtered products
   useEffect(() => {
     setFilteredProducts(filteredProductsMemo);
   }, [filteredProductsMemo]);
 
+  // Scroll categories
   const scroll = useCallback((direction) => {
     if (scrollRef.current) {
       const { scrollLeft, clientWidth } = scrollRef.current;
@@ -547,6 +480,7 @@ export default function CategoriesSection() {
     }
   }, []);
 
+  // Handle category select
   const handleCategorySelect = useCallback((categoryName) => {
     setSelectedCategory(categoryName);
     setIsCategoryDropdownOpen(false);
@@ -554,10 +488,12 @@ export default function CategoriesSection() {
     setShowMobileFilters(false);
   }, []);
 
+  // Handle filter change
   const handleFilterChange = useCallback((filterType, value) => {
     setFilters(prev => ({ ...prev, [filterType]: value }));
   }, []);
 
+  // Clear filters
   const clearFilters = useCallback(() => {
     setSelectedCategory("All");
     setFilters({ condition: "All", verifiedSeller: false });
@@ -567,48 +503,115 @@ export default function CategoriesSection() {
     setShowMobileFilters(false);
   }, []);
 
+  // Handle product click
   const handleProductClick = useCallback((product) => {
     navigate(`/products/${product.id}`);
   }, [navigate]);
 
-  // Updated handleConnectClick to show review modal on success
+  // Handle subscribe click
+  const handleSubscribeClick = useCallback(() => {
+    navigate('/pricing');
+  }, [navigate]);
+
+  // Handle start selling click
+  const handleStartSellingClick = useCallback(async () => {
+    const userData = getUserData();
+    
+    if (!userData) {
+      showToast('warning', 'Please login to start selling', 'Login Required', {
+        label: 'Login',
+        onClick: () => navigate('/login')
+      });
+      return;
+    }
+
+    // Check subscription status
+    const isSubscribed = await checkSubscription();
+    
+    if (!isSubscribed) {
+      showToast('warning', 'You need an active subscription to start selling', 'Subscription Required', {
+        label: 'View Plans',
+        onClick: () => navigate('/pricing')
+      });
+      navigate('/pricing');
+      return;
+    }
+    
+    navigate('/start-selling');
+  }, [navigate, checkSubscription]);
+
+  // Handle connect click
   const handleConnectClick = useCallback(async (e, product) => {
     e.stopPropagation();
     e.preventDefault();
 
+    const userData = getUserData();
+    
+    if (!userData) {
+      showToast('warning', 'Please login to connect with seller', 'Login Required', {
+        label: 'Login',
+        onClick: () => navigate('/login')
+      });
+      return;
+    }
+
+    // Check subscription status
+    const isSubscribed = await checkSubscription();
+    
+    if (!isSubscribed) {
+      showToast('warning', 'You need an active subscription to connect with sellers', 'Subscription Required', {
+        label: 'View Plans',
+        onClick: () => navigate('/pricing')
+      });
+      navigate('/pricing');
+      return;
+    }
+
     setIsConnecting(product.id);
 
-    const success = await triggerConnectionNotification(
-      product,
-      navigate,
-      (loading) => {
-        setIsConnecting(loading ? product.id : null);
-      }
-    );
+    try {
+      const response = await fetch(`${API_URL}/v1/product/engagement`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${userData.token}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          product_id: product.id,
+          user_id: userData.id
+        })
+      });
 
-    if (success) {
-      // Store the product and show review modal
-      setConnectedProduct(product);
-      setShowReviewModal(true);
-      
-      // Still navigate to product page after 1.5 seconds
-      setTimeout(() => {
-        navigate(`/products/${product.id}`);
-      }, 1500);
-    } else {
+      const data = await response.json();
+
+      if (data.status === true || data.success === true) {
+        showToast('success', `Interest sent! Seller will contact you.`, 'Success! 🎯');
+        
+        // Store product and show review modal
+        setConnectedProduct(product);
+        setShowReviewModal(true);
+        
+        // Navigate to product page
+        setTimeout(() => {
+          navigate(`/products/${product.id}`);
+        }, 1500);
+      } else {
+        showToast('error', data.message || 'Failed to send interest', 'Error');
+        setIsConnecting(null);
+      }
+    } catch (error) {
+      console.error('Connection error:', error);
+      showToast('error', 'Network error. Please check your connection.', 'Error');
       setIsConnecting(null);
     }
-  }, [navigate]);
+  }, [navigate, checkSubscription]);
 
   const filteredStates = useMemo(() =>
     NIGERIAN_STATES.filter((state) =>
       state.toLowerCase().includes(searchQuery.toLowerCase())
     ), [searchQuery]
   );
-
-  const middleIndex = Math.floor(filteredProducts.length / 2);
-  const firstHalf = filteredProducts.slice(0, middleIndex);
-  const secondHalf = filteredProducts.slice(middleIndex);
 
   return (
     <section className="pt-0 pb-8 md:py-8 bg-gray-50">
@@ -631,12 +634,21 @@ export default function CategoriesSection() {
         </div>
       </div>
 
+      {/* Subscription Status Banner */}
+      <div className="max-w-7xl mx-auto px-4 mb-4">
+        <SubscriptionStatusBanner 
+          hasSubscription={hasSubscription} 
+          onSubscribe={handleSubscribeClick}
+        />
+      </div>
+
       {/* Mobile Only - Fixed Start Selling Button */}
       <div className="md:hidden fixed bottom-6 right-6 z-40 animate-fade-in">
         <div className="relative group">
           <button
-            onClick={() => navigate('/start-selling')}
-            className="bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-yellow-500 hover:to-yellow-600 text-black font-bold rounded-full p-4 shadow-2xl transition-all duration-300 transform hover:scale-110 hover:shadow-3xl active:scale-95 flex items-center justify-center animate-bounce-slow"
+            onClick={handleStartSellingClick}
+            disabled={subscriptionLoading}
+            className="bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-yellow-500 hover:to-yellow-600 text-black font-bold rounded-full p-4 shadow-2xl transition-all duration-300 transform hover:scale-110 hover:shadow-3xl active:scale-95 flex items-center justify-center animate-bounce-slow disabled:opacity-50 disabled:cursor-not-allowed"
             style={{
               boxShadow: '0 10px 25px rgba(251, 191, 36, 0.5)',
               width: '60px',
@@ -651,7 +663,9 @@ export default function CategoriesSection() {
               <Store size={14} />
               <span className="font-medium">Start Selling Today!</span>
             </div>
-            <div className="mt-1 text-gray-300">Tap to get started</div>
+            <div className="mt-1 text-gray-300">
+              {subscriptionLoading ? 'Checking...' : (hasSubscription ? 'Tap to start' : 'Subscription required')}
+            </div>
             <div className="absolute top-full right-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-black"></div>
           </div>
         </div>
@@ -685,8 +699,7 @@ export default function CategoriesSection() {
                 <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
                   <button
                     onClick={() => handleCategorySelect("All")}
-                    className={`w-full text-left px-3 py-2 text-sm transition-all duration-200 ${selectedCategory === "All" ? "bg-yellow-100 text-yellow-800 font-medium" : "hover:bg-gray-100 text-gray-700"
-                      }`}
+                    className={`w-full text-left px-3 py-2 text-sm transition-all duration-200 ${selectedCategory === "All" ? "bg-yellow-100 text-yellow-800 font-medium" : "hover:bg-gray-100 text-gray-700"}`}
                   >
                     All Categories
                   </button>
@@ -694,8 +707,7 @@ export default function CategoriesSection() {
                     <button
                       key={i}
                       onClick={() => handleCategorySelect(cat.name)}
-                      className={`w-full text-left px-3 py-2 text-sm transition-all duration-200 ${selectedCategory === cat.name ? "bg-yellow-100 text-yellow-800 font-medium" : "hover:bg-gray-100 text-gray-700"
-                        }`}
+                      className={`w-full text-left px-3 py-2 text-sm transition-all duration-200 ${selectedCategory === cat.name ? "bg-yellow-100 text-yellow-800 font-medium" : "hover:bg-gray-100 text-gray-700"}`}
                     >
                       {cat.name}
                     </button>
@@ -714,7 +726,7 @@ export default function CategoriesSection() {
                 className={`border rounded-lg px-3 py-1 text-sm transition-all duration-300 hover:scale-105 ${filters.condition === condition
                   ? "bg-yellow-100 border-yellow-400 text-yellow-800"
                   : "border-gray-300 hover:bg-yellow-100"
-                  }`}
+                }`}
               >
                 {condition}
               </button>
@@ -738,21 +750,20 @@ export default function CategoriesSection() {
                 <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow-lg transform transition-all duration-500 ease-in-out ${filters.verifiedSeller
                   ? 'translate-x-7 scale-110 bg-white'
                   : 'translate-x-1 scale-100 bg-gray-50'
-                  }`}>
+                }`}>
                   <div className={`absolute inset-0 rounded-full transition-all duration-300 ${filters.verifiedSeller
                     ? 'bg-green-400 opacity-20 animate-pulse'
                     : 'bg-gray-400 opacity-10'
-                    }`}></div>
+                  }`}></div>
                 </div>
 
                 <div className={`absolute inset-0 rounded-full transition-all duration-500 ${filters.verifiedSeller
                   ? 'bg-green-400 opacity-30 blur-sm scale-110'
                   : 'bg-gray-400 opacity-0'
-                  }`}></div>
+                }`}></div>
               </div>
 
-              <span className={`ml-2 text-xs font-medium transition-all duration-300 ${filters.verifiedSeller ? 'text-green-600' : 'text-gray-500'
-                }`}>
+              <span className={`ml-2 text-xs font-medium transition-all duration-300 ${filters.verifiedSeller ? 'text-green-600' : 'text-gray-500'}`}>
                 {filters.verifiedSeller ? 'ON' : 'OFF'}
               </span>
             </label>
@@ -773,10 +784,11 @@ export default function CategoriesSection() {
               Join thousands of successful sellers on LoopMart
             </p>
             <button
-              onClick={() => navigate('/start-selling')}
-              className="bg-black text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-800 transition-all duration-300 w-full transform hover:scale-105 active:scale-95"
+              onClick={handleStartSellingClick}
+              disabled={subscriptionLoading}
+              className="bg-black text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-800 transition-all duration-300 w-full transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Get Started
+              {subscriptionLoading ? 'Checking...' : 'Get Started'}
             </button>
           </div>
         </aside>
@@ -804,8 +816,7 @@ export default function CategoriesSection() {
                 <div
                   key={i}
                   onClick={() => handleCategorySelect(cat.name)}
-                  className={`min-w-[180px] h-36 rounded-xl border cursor-pointer bg-white shadow-sm flex flex-col justify-center items-center text-center transition-all duration-500 hover:scale-105 hover:shadow-md ${selectedCategory === cat.name ? "border-yellow-400 border-2 bg-yellow-50" : "border-gray-100"
-                    } ${cat.color || ""}`}
+                  className={`min-w-[180px] h-36 rounded-xl border cursor-pointer bg-white shadow-sm flex flex-col justify-center items-center text-center transition-all duration-500 hover:scale-105 hover:shadow-md ${selectedCategory === cat.name ? "border-yellow-400 border-2 bg-yellow-50" : "border-gray-100"} ${cat.color || ""}`}
                 >
                   {cat.img && (
                     <img
@@ -843,7 +854,6 @@ export default function CategoriesSection() {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {/* Show all products first */}
                 {filteredProducts.map((product) => (
                   <ProductCard
                     key={product.id}
@@ -854,7 +864,7 @@ export default function CategoriesSection() {
                   />
                 ))}
 
-                {/* Show promo banner AFTER all products, not in between */}
+                {/* Promo Banner */}
                 {showPromoBanner && filteredProducts.length > 0 && (
                   <div className="col-span-full mt-8">
                     <div className="bg-gradient-to-r from-yellow-400 to-yellow-500 rounded-2xl p-8 relative overflow-hidden shadow-2xl transform hover:scale-[1.02] transition-all duration-700 group">
@@ -882,10 +892,11 @@ export default function CategoriesSection() {
                         <div className="flex flex-col items-center">
                           <div className="relative">
                             <button
-                              onClick={() => navigate('/start-selling')}
-                              className="bg-black text-white font-bold py-3 px-6 rounded-xl shadow-xl transform hover:scale-110 hover:shadow-2xl transition-all duration-500 flex items-center gap-2 text-base group-hover:bg-gray-900"
+                              onClick={handleStartSellingClick}
+                              disabled={subscriptionLoading}
+                              className="bg-black text-white font-bold py-3 px-6 rounded-xl shadow-xl transform hover:scale-110 hover:shadow-2xl transition-all duration-500 flex items-center gap-2 text-base group-hover:bg-gray-900 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                              Get Started
+                              {subscriptionLoading ? 'Checking...' : 'Get Started'}
                               <ArrowRight className="animate-bounce group-hover:translate-x-2 transition-transform duration-300" size={18} />
                             </button>
                           </div>
@@ -946,8 +957,7 @@ export default function CategoriesSection() {
                   <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
                     <button
                       onClick={() => handleCategorySelect("All")}
-                      className={`w-full text-left px-3 py-2 text-sm transition-all duration-200 ${selectedCategory === "All" ? "bg-yellow-100 text-yellow-800 font-medium" : "hover:bg-gray-100 text-gray-700"
-                        }`}
+                      className={`w-full text-left px-3 py-2 text-sm transition-all duration-200 ${selectedCategory === "All" ? "bg-yellow-100 text-yellow-800 font-medium" : "hover:bg-gray-100 text-gray-700"}`}
                     >
                       All Categories
                     </button>
@@ -955,8 +965,7 @@ export default function CategoriesSection() {
                       <button
                         key={i}
                         onClick={() => handleCategorySelect(cat.name)}
-                        className={`w-full text-left px-3 py-2 text-sm transition-all duration-200 ${selectedCategory === cat.name ? "bg-yellow-100 text-yellow-800 font-medium" : "hover:bg-gray-100 text-gray-700"
-                          }`}
+                        className={`w-full text-left px-3 py-2 text-sm transition-all duration-200 ${selectedCategory === cat.name ? "bg-yellow-100 text-yellow-800 font-medium" : "hover:bg-gray-100 text-gray-700"}`}
                       >
                         {cat.name}
                       </button>
@@ -976,7 +985,7 @@ export default function CategoriesSection() {
                     className={`border rounded-lg px-3 py-1 text-sm transition-all duration-300 hover:scale-105 ${filters.condition === condition
                       ? "bg-yellow-100 border-yellow-400 text-yellow-800"
                       : "border-gray-300 hover:bg-yellow-100"
-                      }`}
+                    }`}
                   >
                     {condition}
                   </button>
@@ -1001,21 +1010,20 @@ export default function CategoriesSection() {
                   <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow-lg transform transition-all duration-500 ease-in-out ${filters.verifiedSeller
                     ? 'translate-x-7 scale-110 bg-white'
                     : 'translate-x-1 scale-100 bg-gray-50'
-                    }`}>
+                  }`}>
                     <div className={`absolute inset-0 rounded-full transition-all duration-300 ${filters.verifiedSeller
                       ? 'bg-green-400 opacity-20 animate-pulse'
                       : 'bg-gray-400 opacity-10'
-                      }`}></div>
+                    }`}></div>
                   </div>
 
                   <div className={`absolute inset-0 rounded-full transition-all duration-500 ${filters.verifiedSeller
                     ? 'bg-green-400 opacity-30 blur-sm scale-110'
                     : 'bg-gray-400 opacity-0'
-                    }`}></div>
+                  }`}></div>
                 </div>
 
-                <span className={`ml-2 text-xs font-medium transition-all duration-300 ${filters.verifiedSeller ? 'text-green-600' : 'text-gray-500'
-                  }`}>
+                <span className={`ml-2 text-xs font-medium transition-all duration-300 ${filters.verifiedSeller ? 'text-green-600' : 'text-gray-500'}`}>
                   {filters.verifiedSeller ? 'ON' : 'OFF'}
                 </span>
               </label>
@@ -1066,7 +1074,7 @@ export default function CategoriesSection() {
                 />
               ))}
 
-              {/* Promo banner after all products on mobile */}
+              {/* Promo banner on mobile */}
               {showPromoBanner && filteredProducts.length > 0 && (
                 <div className="bg-gradient-to-r from-yellow-400 to-yellow-500 rounded-2xl p-6 text-center relative overflow-hidden shadow-lg transform hover:scale-105 transition-all duration-500 my-6">
                   <div className="relative z-10">
@@ -1084,10 +1092,11 @@ export default function CategoriesSection() {
                       Get an active badge by becoming a verified seller
                     </p>
                     <button
-                      onClick={() => navigate('/start-selling')}
-                      className="bg-black text-white font-bold py-3 px-6 rounded-lg shadow-lg transform hover:scale-110 transition-all duration-500 hover:bg-gray-900 animate-pulse hover:animate-none"
+                      onClick={handleStartSellingClick}
+                      disabled={subscriptionLoading}
+                      className="bg-black text-white font-bold py-3 px-6 rounded-lg shadow-lg transform hover:scale-110 transition-all duration-500 hover:bg-gray-900 animate-pulse hover:animate-none disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      Get Started
+                      {subscriptionLoading ? 'Checking...' : 'Get Started'}
                     </button>
                     <p className="text-black/70 text-xs mt-3 font-medium transition-all duration-500 hover:text-black/90">
                       Join thousands of successful sellers today!
@@ -1148,7 +1157,7 @@ export default function CategoriesSection() {
         </div>
       )}
 
-      {/* Review Prompt Modal - ADDED HERE */}
+      {/* Review Prompt Modal */}
       <ReviewPromptModal
         isOpen={showReviewModal}
         onClose={() => {

@@ -1,4 +1,5 @@
-import { Navigate } from 'react-router-dom';
+// components/ProtectedRoute.jsx
+import { Navigate, useLocation } from 'react-router-dom';
 import { userService } from '../services/userService';
 import { useToast } from '../contexts/ToastContext';
 import { useEffect, useRef } from 'react';
@@ -7,7 +8,8 @@ const ProtectedRoute = ({ children }) => {
   const user = userService.getUser();
   const token = userService.getToken();
   const toast = useToast();
-  const hasShownToast = useRef(false); // Prevent multiple toasts
+  const hasShownToast = useRef(false);
+  const location = useLocation();
 
   useEffect(() => {
     // Only show toast once when component mounts and user is not logged in
@@ -20,7 +22,8 @@ const ProtectedRoute = ({ children }) => {
   }, []); // Empty dependency array - runs only once
 
   if (!user || !token) {
-    return <Navigate to="/" replace />;
+    // Redirect to login page with the return URL
+    return <Navigate to={`/login?redirect=${encodeURIComponent(location.pathname)}`} replace />;
   }
 
   return children;
