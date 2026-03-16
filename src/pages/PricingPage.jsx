@@ -303,15 +303,20 @@ export default function PricingPage() {
   };
 
   const handlePlanSelection = (plan) => {
-    setSelectedPlan(plan);
-    
-    // Check if user is logged in
-    if (!isUserLoggedIn()) {
-      setShowLoginModal(true);
-    } else {
-      setShowPaymentModal(true);
-    }
-  };
+  setSelectedPlan(plan);
+  
+  // Check if user is logged in
+  if (!isUserLoggedIn()) {
+    setShowLoginModal(true);
+    // Add toast with navigation
+    toast?.warning('Please login to subscribe to a plan', 5000, { 
+      path: '/login',
+      label: 'Login now'
+    });
+  } else {
+    setShowPaymentModal(true);
+  }
+};
 
   const handleConfirmPayment = async () => {
     if (!selectedPlan) return;
