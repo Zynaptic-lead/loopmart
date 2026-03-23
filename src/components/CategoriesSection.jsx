@@ -1,4 +1,4 @@
-// pages/CategoriesSection.jsx - Frontend Randomization
+// pages/CategoriesSection.jsx - Without Sold feature
 import React, { useRef, useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from 'react-router-dom';
 import {
@@ -9,7 +9,6 @@ import { FaFilter } from "react-icons/fa";
 import { MdVerified } from "react-icons/md";
 import { useSubscription } from '../contexts/SubscriptionContext';
 import logo from '../assets/logo.png';
-import ReviewPromptModal from './ReviewPromptModal';
 
 // API Base URL
 const API_URL = import.meta.env.VITE_API_URL || 'https://loopmart.ng/api';
@@ -95,11 +94,10 @@ const shuffleArray = (array) => {
   return shuffled;
 };
 
-// Product Card Component
+// Product Card Component - NO SOLD FEATURE
 const ProductCard = ({ product, onProductClick, onConnectClick, isConnecting = false }) => {
   const hasPromo = product.actual_price && product.promo_price;
   const [isHovered, setIsHovered] = useState(false);
-  const isSold = product.sold && product.sold !== "0";
 
   return (
     <div
@@ -129,32 +127,23 @@ const ProductCard = ({ product, onProductClick, onConnectClick, isConnecting = f
           </span>
         )}
 
-        {isSold && (
-          <div className="absolute inset-0 bg-black bg-opacity-60 flex items-center justify-center">
-            <div className="bg-red-600 text-white px-4 py-2 rounded-lg font-bold text-lg transform rotate-12">
-              SOLD
-            </div>
-          </div>
-        )}
-
-        {!isSold && (
-          <div className={`absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center transition-all duration-500 ${isHovered ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}>
-            <button
-              onClick={(e) => onConnectClick(e, product)}
-              disabled={isConnecting}
-              className="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-lg flex items-center gap-2 transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isConnecting ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                  <span>Sending...</span>
-                </>
-              ) : (
-                'Connect'
-              )}
-            </button>
-          </div>
-        )}
+        {/* Connect Button on Hover - Always visible, no Sold check */}
+        <div className={`absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center transition-all duration-500 ${isHovered ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}>
+          <button
+            onClick={(e) => onConnectClick(e, product)}
+            disabled={isConnecting}
+            className="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-lg flex items-center gap-2 transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isConnecting ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                <span>Sending...</span>
+              </>
+            ) : (
+              'Connect'
+            )}
+          </button>
+        </div>
       </div>
 
       <div className="p-4">
@@ -174,7 +163,7 @@ const ProductCard = ({ product, onProductClick, onConnectClick, isConnecting = f
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-2">
             {hasPromo && <span className="text-gray-400 text-sm line-through">{product.actual_price}</span>}
-            <span className="text-lg font-bold text-red-600">{isSold ? "SOLD" : product.price}</span>
+            <span className="text-lg font-bold text-red-600">{product.price}</span>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-sm text-gray-500 flex items-center gap-1">
@@ -191,10 +180,9 @@ const ProductCard = ({ product, onProductClick, onConnectClick, isConnecting = f
   );
 };
 
-// Mobile Product Card Component
+// Mobile Product Card Component - NO SOLD FEATURE
 const MobileProductCard = ({ product, onProductClick, onConnectClick, isConnecting = false }) => {
   const hasPromo = product.actual_price && product.promo_price;
-  const isSold = product.sold && product.sold !== "0";
 
   return (
     <div
@@ -223,14 +211,6 @@ const MobileProductCard = ({ product, onProductClick, onConnectClick, isConnecti
             Sale
           </span>
         )}
-
-        {isSold && (
-          <div className="absolute inset-0 bg-black bg-opacity-60 flex items-center justify-center">
-            <div className="bg-red-600 text-white px-4 py-2 rounded-lg font-bold text-lg transform rotate-12">
-              SOLD
-            </div>
-          </div>
-        )}
       </div>
 
       <div className="p-4">
@@ -250,7 +230,7 @@ const MobileProductCard = ({ product, onProductClick, onConnectClick, isConnecti
         <div className="flex flex-col gap-2 mb-3">
           <div className="flex items-center gap-2">
             {hasPromo && <span className="text-gray-400 text-sm line-through">{product.actual_price}</span>}
-            <span className="text-lg font-bold text-red-600">{isSold ? "SOLD" : product.price}</span>
+            <span className="text-lg font-bold text-red-600">{product.price}</span>
           </div>
 
           <div className="flex items-center justify-between">
@@ -267,25 +247,23 @@ const MobileProductCard = ({ product, onProductClick, onConnectClick, isConnecti
           </div>
         </div>
 
-        {!isSold && (
-          <button
-            onClick={(e) => onConnectClick(e, product)}
-            disabled={isConnecting}
-            className="w-full bg-green-500 hover:bg-green-600 text-white font-medium py-3 rounded-lg flex items-center justify-center gap-2 transition-all duration-300 active:scale-95 text-base disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isConnecting ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                <span>Sending...</span>
-              </>
-            ) : (
-              <>
-                <Info size={16} />
-                Connect with Seller
-              </>
-            )}
-          </button>
-        )}
+        <button
+          onClick={(e) => onConnectClick(e, product)}
+          disabled={isConnecting}
+          className="w-full bg-green-500 hover:bg-green-600 text-white font-medium py-3 rounded-lg flex items-center justify-center gap-2 transition-all duration-300 active:scale-95 text-base disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isConnecting ? (
+            <>
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+              <span>Sending...</span>
+            </>
+          ) : (
+            <>
+              <Info size={16} />
+              Connect with Seller
+            </>
+          )}
+        </button>
       </div>
     </div>
   );
@@ -345,8 +323,8 @@ export default function CategoriesSection() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedState, setSelectedState] = useState("Location");
   const [searchQuery, setSearchQuery] = useState("");
-  const [allProducts, setAllProducts] = useState([]); // Store ALL products
-  const [displayedProducts, setDisplayedProducts] = useState([]); // Store randomized 48 products
+  const [allProducts, setAllProducts] = useState([]);
+  const [displayedProducts, setDisplayedProducts] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [filters, setFilters] = useState({
@@ -359,8 +337,6 @@ export default function CategoriesSection() {
   const [showCategories, setShowCategories] = useState(false);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [isConnecting, setIsConnecting] = useState(null);
-  const [showReviewModal, setShowReviewModal] = useState(false);
-  const [connectedProduct, setConnectedProduct] = useState(null);
   const [totalProducts, setTotalProducts] = useState(0);
   
   // Add ref to track if initial fetch is done
@@ -374,8 +350,6 @@ export default function CategoriesSection() {
   // Function to get random products from all products
   const getRandomProducts = useCallback((products, count = 48) => {
     if (!products || products.length === 0) return [];
-    
-    // Shuffle the array and take first 'count' items
     const shuffled = shuffleArray(products);
     return shuffled.slice(0, Math.min(count, products.length));
   }, []);
@@ -394,7 +368,6 @@ export default function CategoriesSection() {
       
       const data = await response.json();
       
-      // Handle different response formats based on your updated backend
       let productsArray = [];
       if (data.data && Array.isArray(data.data)) {
         productsArray = data.data;
@@ -409,9 +382,7 @@ export default function CategoriesSection() {
       
       console.log(`Total products fetched: ${productsArray.length}`);
       
-      // Transform the products
       const transformedProducts = productsArray.map((item) => {
-        // Parse image URL
         let imageUrl = "";
         try {
           if (item.image_url) {
@@ -432,7 +403,6 @@ export default function CategoriesSection() {
           imageUrl = item.image_url || item.image || item.photo || "";
         }
 
-        // Map category
         let category = "Others";
         if (item.category_id) {
           const categoryMap = {
@@ -465,13 +435,11 @@ export default function CategoriesSection() {
           seller_id: item.seller_id || item.user_id,
           created_at: item.created_at,
           updated_at: item.updated_at,
-          sold: item.sold || "0"
+          // Remove sold field
         };
       });
 
       setAllProducts(transformedProducts);
-      
-      // Get random 48 products for display
       const randomProducts = getRandomProducts(transformedProducts, 48);
       setDisplayedProducts(randomProducts);
       setFilteredProducts(randomProducts);
@@ -497,11 +465,8 @@ export default function CategoriesSection() {
     if (allProducts.length > 0) {
       const newRandomProducts = getRandomProducts(allProducts, 48);
       setDisplayedProducts(newRandomProducts);
-      
-      // Apply current filters to the new random set
       const filtered = applyFilters(newRandomProducts, selectedCategory, filters, selectedState);
       setFilteredProducts(filtered);
-      
       showToast('info', 'Products refreshed! Showing new random selection.', 'Refreshed');
     }
   }, [allProducts, getRandomProducts, selectedCategory, filters, selectedState]);
@@ -613,7 +578,7 @@ export default function CategoriesSection() {
     navigate('/start-selling');
   }, [navigate, checkSubscription]);
 
-  // Handle connect click
+  // Handle connect click - NO REVIEW MODAL
   const handleConnectClick = useCallback(async (e, product) => {
     e.stopPropagation();
     e.preventDefault();
@@ -649,19 +614,17 @@ export default function CategoriesSection() {
       if (data.status === true || data.success === true) {
         showToast('success', `Interest sent! Seller will contact you.`, 'Success! 🎯');
         
-        
-        
-        
+        // No review modal - just navigate to product page
         setTimeout(() => {
           navigate(`/products/${product.id}`);
         }, 1500);
       } else {
         showToast('error', data.message || 'Failed to send interest', 'Error');
-        setIsConnecting(null);
       }
     } catch (error) {
       console.error('Connection error:', error);
       showToast('error', 'Network error. Please check your connection.', 'Error');
+    } finally {
       setIsConnecting(null);
     }
   }, [navigate]);
@@ -1249,16 +1212,6 @@ export default function CategoriesSection() {
           </div>
         </div>
       )}
-
-      {/* Review Prompt Modal */}
-      <ReviewPromptModal
-        isOpen={showReviewModal}
-        onClose={() => {
-          setShowReviewModal(false);
-          setConnectedProduct(null);
-        }}
-        product={connectedProduct}
-      />
     </section>
   );
 }
