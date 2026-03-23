@@ -53,6 +53,30 @@
   </head>
   <body>
     <div id="root"></div>
+  <script>
+      (function() {
+        console.log('🔍 Token handler (inline) running');
+        var urlParams = new URLSearchParams(window.location.search);
+        var token = urlParams.get('token');
+        
+        console.log('Current URL:', window.location.href);
+        console.log('Token found:', token ? 'YES' : 'NO');
+        
+        if (token) {
+          console.log('✅ Token detected! Storing in localStorage');
+          localStorage.setItem('loopmart_token', token);
+          
+          // Clear the URL
+          var newUrl = window.location.origin + window.location.pathname;
+          window.history.replaceState({}, document.title, newUrl);
+          console.log('🧹 Token removed from URL');
+          
+          // Optional: Show a message
+          alert('Login successful! Welcome to LoopMart!');
+        }
+      })();
+    </script>
+    
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
