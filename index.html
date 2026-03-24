@@ -74,7 +74,7 @@
           // Fetch user data with the token
           const API_URL = 'https://loopmart.ng/api';
           
-          fetch(`${API_URL}/user`, {
+          fetch(`${API_URL}/v1/user`, {
             headers: {
               'Authorization': `Bearer ${token}`,
               'Accept': 'application/json'
@@ -90,8 +90,8 @@
           .then(data => {
             console.log('👤 User data received:', data);
             
-            // Extract user data from response
-            let userData = data.data || data.user || data;
+            // Extract user data from response (the API returns data.user)
+            let userData = data.data?.user || data.user || data;
             
             // Store user data in localStorage
             localStorage.setItem('loopmart_user', JSON.stringify(userData));
