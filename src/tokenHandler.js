@@ -2,28 +2,43 @@
 export function initTokenHandler() {
   console.log('🔍 Token handler initializing');
   
-  // Check for token in URL
   const urlParams = new URLSearchParams(window.location.search);
   const token = urlParams.get('token');
   
-  console.log('Current URL:', window.location.href);
-  console.log('Token found:', token ? 'YES' : 'NO');
-  
   if (token) {
-    console.log('✅ Token detected! Storing in localStorage');
+    console.log('✅ Token found:', token.substring(0, 20) + '...');
+    
+    // Store token
     localStorage.setItem('loopmart_token', token);
     
-    // Clear the URL
+    // Clear URL
     const newUrl = window.location.origin + window.location.pathname;
     window.history.replaceState({}, document.title, newUrl);
-    console.log('🧹 Token removed from URL');
     
-    // Optional: Show a message
-    console.log('🔄 Token stored. User should be logged in on next page load.');
+    // Fetch user data
+    const API_URL = import.meta.env.VITE_API_URL || 'https://loopmart.ng/api';
+    
+    fetch(`${API_URL}/user`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json'
+      }
+    })
+    .then(response => {
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      return response.json();
+    })
+    .then(data => {
+      const userData = data.data || data.user || data;
+      localStorage.setItem('loopmart_user', JSON.stringify(userData));
+      console.log('💾 User stored, reloading...');
+      window.location.reload();
+    })
+    .catch(error => {
+      console.error('Error fetching user:', error);
+    });
   }
 }
 
-// Call this immediately when the script loads
-if (typeof window !== 'undefined') {
-  initTokenHandler();
-}
+// Run immediately
+initTokenHandler();
