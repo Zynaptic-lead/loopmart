@@ -217,6 +217,7 @@ export default function Header({ onModalStateChange }) {
     triggerBellAnimation();
   };
 
+  // ========== NOTIFICATION EVENT LISTENER ==========
   useEffect(() => {
     const handleAddNotification = (event) => {
       addNotification(event.detail);
@@ -278,11 +279,11 @@ export default function Header({ onModalStateChange }) {
   };
 
   // ========== AUTH FUNCTIONS ==========
-const handleGoogleLogin = () => {
-  const googleAuthUrl = import.meta.env.VITE_GOOGLE_AUTH_URL || 'https://loopmart.ng/auth/google/redirect';
-  const redirectUrl = encodeURIComponent(window.location.origin);
-  window.location.href = `${googleAuthUrl}?redirect=${redirectUrl}`;
-};
+  const handleGoogleLogin = () => {
+    const googleAuthUrl = import.meta.env.VITE_GOOGLE_AUTH_URL || 'https://loopmart.ng/auth/google/redirect';
+    const redirectUrl = encodeURIComponent(window.location.origin);
+    window.location.href = `${googleAuthUrl}?redirect=${redirectUrl}`;
+  };
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -358,117 +359,113 @@ const handleGoogleLogin = () => {
   };
 
   const handleSignup = async (e) => {
-  e.preventDefault();
-  setLoading(true);
-  setMessage({ text: '', type: 'success' });
+    e.preventDefault();
+    setLoading(true);
+    setMessage({ text: '', type: 'success' });
 
-  if (!signupFormData.email.trim() || !signupFormData.password.trim() || !signupFormData.password_confirmation.trim()) {
-    showMessage('Please fill in all fields', 'error');
-    setLoading(false);
-    return;
-  }
-
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(signupFormData.email.trim())) {
-    showMessage('Please enter a valid email address', 'error');
-    setLoading(false);
-    return;
-  }
-
-  if (signupFormData.password.length < 8) {
-    showMessage('Password must be at least 8 characters', 'error');
-    setLoading(false);
-    return;
-  }
-
-  if (signupFormData.password !== signupFormData.password_confirmation) {
-    showMessage('Passwords do not match', 'error');
-    setLoading(false);
-    return;
-  }
-
-  try {
-    console.log('Attempting signup with:', signupFormData.email);
-    
-    const response = await apiFetch('/auth/register', {
-      method: 'POST',
-      body: JSON.stringify({
-        email: signupFormData.email.trim(),
-        password: signupFormData.password,
-        password_confirmation: signupFormData.password_confirmation,
-        name: signupFormData.name || signupFormData.email.split('@')[0],
-        username: signupFormData.username || signupFormData.email.split('@')[0]
-      }),
-    });
-
-    const data = await response.json();
-    console.log('Signup response:', data);
-
-    // Check if signup was successful
-    if (data.status === true || data.success === true) {
-      let token, userData;
-      
-      // Handle different response structures
-      if (data.data && data.data.token) {
-        token = data.data.token;
-        userData = data.data.user;
-      } else if (data.token) {
-        token = data.token;
-        userData = data.user;
-      } else {
-        // If we get here but status is true, it might be a simple success message
-        showMessage('Registration successful! Please login.', 'success');
-        setTimeout(() => {
-          setShowSignup(false);
-          setShowLogin(true);
-        }, 1500);
-        setLoading(false);
-        return;
-      }
-      
-      if (!token || !userData) {
-        showMessage('Registration successful! Please login.', 'success');
-        setTimeout(() => {
-          setShowSignup(false);
-          setShowLogin(true);
-        }, 1500);
-        setLoading(false);
-        return;
-      }
-      
-      console.log('Signup successful, setting token and user');
-      
-      AuthService.setToken(token, rememberMe);
-      userService.setUser(userData, token);
-      
-      showMessage('Registration successful!', 'success');
-      
-      setTimeout(() => {
-        setShowSignup(false);
-        setSignupFormData({ 
-          email: '', 
-          password: '', 
-          password_confirmation: '',
-          name: '',
-          username: ''
-        });
-        setMessage({ text: '', type: 'success' });
-        loadNotifications();
-      }, 1500);
-      
-    } else {
-      // Registration failed
-      const errorMsg = data.message || 
-                      (data.errors ? Object.values(data.errors).flat().join(' ') : 'Registration failed');
-      showMessage(errorMsg, 'error');
+    if (!signupFormData.email.trim() || !signupFormData.password.trim() || !signupFormData.password_confirmation.trim()) {
+      showMessage('Please fill in all fields', 'error');
+      setLoading(false);
+      return;
     }
-  } catch (error) {
-    console.error('Signup error:', error);
-    showMessage('Registration failed. Please try again.', 'error');
-  } finally {
-    setLoading(false);
-  }
-};
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(signupFormData.email.trim())) {
+      showMessage('Please enter a valid email address', 'error');
+      setLoading(false);
+      return;
+    }
+
+    if (signupFormData.password.length < 8) {
+      showMessage('Password must be at least 8 characters', 'error');
+      setLoading(false);
+      return;
+    }
+
+    if (signupFormData.password !== signupFormData.password_confirmation) {
+      showMessage('Passwords do not match', 'error');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      console.log('Attempting signup with:', signupFormData.email);
+      
+      const response = await apiFetch('/auth/register', {
+        method: 'POST',
+        body: JSON.stringify({
+          email: signupFormData.email.trim(),
+          password: signupFormData.password,
+          password_confirmation: signupFormData.password_confirmation,
+          name: signupFormData.name || signupFormData.email.split('@')[0],
+          username: signupFormData.username || signupFormData.email.split('@')[0]
+        }),
+      });
+
+      const data = await response.json();
+      console.log('Signup response:', data);
+
+      if (data.status === true || data.success === true) {
+        let token, userData;
+        
+        if (data.data && data.data.token) {
+          token = data.data.token;
+          userData = data.data.user;
+        } else if (data.token) {
+          token = data.token;
+          userData = data.user;
+        } else {
+          showMessage('Registration successful! Please login.', 'success');
+          setTimeout(() => {
+            setShowSignup(false);
+            setShowLogin(true);
+          }, 1500);
+          setLoading(false);
+          return;
+        }
+        
+        if (!token || !userData) {
+          showMessage('Registration successful! Please login.', 'success');
+          setTimeout(() => {
+            setShowSignup(false);
+            setShowLogin(true);
+          }, 1500);
+          setLoading(false);
+          return;
+        }
+        
+        console.log('Signup successful, setting token and user');
+        
+        AuthService.setToken(token, rememberMe);
+        userService.setUser(userData, token);
+        
+        showMessage('Registration successful!', 'success');
+        
+        setTimeout(() => {
+          setShowSignup(false);
+          setSignupFormData({ 
+            email: '', 
+            password: '', 
+            password_confirmation: '',
+            name: '',
+            username: ''
+          });
+          setMessage({ text: '', type: 'success' });
+          loadNotifications();
+        }, 1500);
+        
+      } else {
+        const errorMsg = data.message || 
+                        (data.errors ? Object.values(data.errors).flat().join(' ') : 'Registration failed');
+        showMessage(errorMsg, 'error');
+      }
+    } catch (error) {
+      console.error('Signup error:', error);
+      showMessage('Registration failed. Please try again.', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleLogout = () => {
     userService.clearUser();
@@ -1093,8 +1090,26 @@ const handleGoogleLogin = () => {
   );
 
   // ========== EFFECTS ==========
+  // Load user from localStorage on mount
   useEffect(() => {
-    // Get user from localStorage on mount
+    const token = localStorage.getItem('loopmart_token');
+    const userStr = localStorage.getItem('loopmart_user');
+    
+    if (token && userStr && !user) {
+      try {
+        const userData = JSON.parse(userStr);
+        console.log('Header - Loading user from localStorage:', userData);
+        setUser(userData);
+        setAvatarColor(getRandomColor());
+        loadNotifications();
+      } catch (e) {
+        console.error('Error parsing user data:', e);
+      }
+    }
+  }, [user]);
+
+  // Get user from userService on mount
+  useEffect(() => {
     const currentUser = userService.getUser();
     if (currentUser) {
       console.log('Header - User from storage:', currentUser);
