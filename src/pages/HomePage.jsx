@@ -123,7 +123,7 @@ export default function HomePage() {
     return (
       <button
         onClick={scrollToTop}
-        className="fixed bottom-8 left-8 z-50 bg-yellow-500 hover:bg-yellow-600 text-white rounded-full p-3 shadow-lg transition-all duration-300 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 animate-bounce"
+        className="fixed bottom-8 z-50 bg-yellow-500 hover:bg-yellow-600 text-white rounded-full p-3 shadow-lg transition-all duration-300 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 animate-bounce left-8 md:left-auto md:right-8"
         aria-label="Scroll to top"
       >
         <svg 
@@ -173,7 +173,7 @@ export default function HomePage() {
           animation: slide-in 0.3s ease-out;
         }
         
-        /* Custom bounce animation if you want more control */
+        /* Custom bounce animation */
         @keyframes custom-bounce {
           0%, 100% {
             transform: translateY(0);
