@@ -16,6 +16,7 @@ export default function HomePage() {
     message: '', 
     title: '' 
   });
+  const [showScrollButton, setShowScrollButton] = useState(false);
 
   // Listen for toast events
   useEffect(() => {
@@ -36,6 +37,33 @@ export default function HomePage() {
       window.removeEventListener('show-toast', handleToastEvent);
     };
   }, []);
+
+  // Listen for scroll events to show/hide scroll button
+  useEffect(() => {
+    const handleScroll = () => {
+      // Show button when scrolled down 300px
+      if (window.scrollY > 300) {
+        setShowScrollButton(true);
+      } else {
+        setShowScrollButton(false);
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    
+    // Cleanup
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, []);
+
+  // Scroll to top function
+  const scrollToTop = () => {
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
+  };
 
   // Simple Toast Component
   const Toast = () => {
@@ -88,6 +116,33 @@ export default function HomePage() {
     );
   };
 
+  // Scroll to Top Button Component
+  const ScrollToTopButton = () => {
+    if (!showScrollButton) return null;
+
+    return (
+      <button
+        onClick={scrollToTop}
+        className="fixed bottom-8 left-8 z-50 bg-yellow-500 hover:bg-yellow-600 text-white rounded-full p-3 shadow-lg transition-all duration-300 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 animate-bounce"
+        aria-label="Scroll to top"
+      >
+        <svg 
+          className="w-6 h-6" 
+          fill="none" 
+          stroke="currentColor" 
+          viewBox="0 0 24 24"
+        >
+          <path 
+            strokeLinecap="round" 
+            strokeLinejoin="round" 
+            strokeWidth={2} 
+            d="M5 10l7-7m0 0l7 7m-7-7v18" 
+          />
+        </svg>
+      </button>
+    );
+  };
+
   return (
     <div className="min-h-screen flex flex-col">
       <Header onModalStateChange={setIsAnyModalActive} />
@@ -100,6 +155,7 @@ export default function HomePage() {
       
       <Footer />
       <Toast />
+      <ScrollToTopButton />
       
       {/* Add CSS animation */}
       <style>{`
@@ -115,6 +171,19 @@ export default function HomePage() {
         }
         .animate-slide-in {
           animation: slide-in 0.3s ease-out;
+        }
+        
+        /* Custom bounce animation if you want more control */
+        @keyframes custom-bounce {
+          0%, 100% {
+            transform: translateY(0);
+          }
+          50% {
+            transform: translateY(-10px);
+          }
+        }
+        .animate-bounce {
+          animation: custom-bounce 1s ease-in-out infinite;
         }
       `}</style>
     </div>
