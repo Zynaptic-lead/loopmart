@@ -105,7 +105,7 @@ const features = [
   },
   {
     title: 'Advanced Analytics',
-    description: 'Insightful dashboard showing visitor trends, engagement metrics and performance data.',
+    description: 'Insightful dashboard showing visitor trends, engagement metrics, and performance data.',
     icon: FaChartLine,
   },
   {
@@ -266,6 +266,12 @@ export default function PricingPage() {
       
       const token = userService.getToken();
       
+      if (!token) {
+        toast?.error('Session expired. Please login again.');
+        window.location.href = '/login';
+        return;
+      }
+      
       // Check subscription status
       const response = await fetch(`${API_URL}/v1/subscription`, {
         method: 'GET',
@@ -281,14 +287,11 @@ export default function PricingPage() {
       
       if (data.status && data.data?.active) {
         toast?.success('Payment successful! Your subscription is now active.');
-        // Refresh subscription context
         await refreshSubscription();
-        // Hard redirect to start-selling
         window.location.href = '/start-selling';
       } else {
         toast?.info('Payment completed. Activating your subscription...');
         
-        // Wait and check again
         setTimeout(async () => {
           const retryResponse = await fetch(`${API_URL}/v1/subscription`, {
             method: 'GET',
@@ -316,15 +319,15 @@ export default function PricingPage() {
       window.location.href = '/start-selling';
     } finally {
       setVerifyingPayment(false);
-      // Clean URL
       window.history.replaceState({}, document.title, window.location.pathname);
     }
   };
 
   const scrollToPlans = () => {
-    document.getElementById('pricing-plans')?.scrollIntoView({ 
-      behavior: 'smooth' 
-    });
+    const plansSection = document.getElementById('pricing-plans');
+    if (plansSection) {
+      plansSection.scrollIntoView({ behavior: 'smooth' });
+    }
   };
 
   const isUserLoggedIn = () => {
@@ -332,6 +335,7 @@ export default function PricingPage() {
   };
 
   const handlePlanSelection = (plan) => {
+    console.log('Plan selected:', plan);
     setSelectedPlan(plan);
     
     if (!isUserLoggedIn()) {
@@ -343,7 +347,10 @@ export default function PricingPage() {
   };
 
   const handleConfirmPayment = async () => {
-    if (!selectedPlan) return;
+    if (!selectedPlan) {
+      console.error('No plan selected');
+      return;
+    }
     
     setProcessingPlan(selectedPlan.id);
     
@@ -354,15 +361,15 @@ export default function PricingPage() {
         toast?.error('Authentication failed. Please login again.');
         setShowPaymentModal(false);
         setShowLoginModal(true);
+        setProcessingPlan(null);
         return;
       }
 
       console.log('Selected Plan:', selectedPlan);
       console.log('Plan value:', selectedPlan.plan);
 
-      // Prepare request body - USE "plan" as shown in your Postman
       const requestBody = {
-        plan: selectedPlan.plan  // "monthly" or "yearly"
+        plan: selectedPlan.plan
       };
       
       console.log('Sending request to:', `${API_URL}/v1/subscription`);
@@ -403,7 +410,9 @@ export default function PricingPage() {
   };
 
   const handleStartSelling = async () => {
+    console.log('Start selling clicked, hasSubscription:', hasSubscription);
     const isSubscribed = await refreshSubscription();
+    console.log('After refresh, isSubscribed:', isSubscribed);
     
     if (isSubscribed) {
       navigate('/start-selling');
@@ -413,6 +422,7 @@ export default function PricingPage() {
     }
   };
 
+  // Show loading state
   if (subLoading || verifyingPayment) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
