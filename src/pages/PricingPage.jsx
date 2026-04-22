@@ -15,7 +15,6 @@ import { useToast } from '../contexts/ToastContext';
 import { userService } from '../services/userService';
 import logo from '../assets/logo.png';
 
-const PAYSTACK_PUBLIC_KEY = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || 'pk_test_...';
 const BASE_URL = 'https://loopmart.ng';
 
 const vendorPlans = [
@@ -122,21 +121,6 @@ const features = [
     icon: FaHeadset,
   },
 ];
-
-// Load Paystack script
-const loadPaystackScript = () => {
-  return new Promise((resolve, reject) => {
-    if (window.PaystackPop) {
-      resolve();
-      return;
-    }
-    const script = document.createElement('script');
-    script.src = 'https://js.paystack.co/v1/inline.js';
-    script.onload = () => resolve();
-    script.onerror = () => reject(new Error('Failed to load Paystack script'));
-    document.body.appendChild(script);
-  });
-};
 
 const PaymentModal = ({ isOpen, onClose, plan, onConfirm, processing }) => {
   if (!isOpen) return null;
@@ -283,7 +267,7 @@ export default function PricingPage() {
       toast?.info('Verifying your payment...');
       
       const token = userService.getToken();
-      const response = await fetch(`${BASE_URL}/api/v1/subscription/verify-payment`, {
+      const response = await fetch(`${BASE_URL}/api/v1/subscription/verify`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -341,87 +325,40 @@ export default function PricingPage() {
     setProcessingPlan(selectedPlan.id);
     
     try {
-      // Load Paystack script
-      await loadPaystackScript();
+      const token = userService.getToken();
       
-      const user = userService.getUser();
-      const email = user?.email || user?.email_address;
-      
-      if (!email) {
-        toast?.error('User email not found. Please update your profile.');
-        setProcessingPlan(null);
-        return;
-      }
-      
-      const amount = selectedPlan.amount * 100; // Convert to kobo
-      const reference = `SUB_${selectedPlan.id}_${Date.now()}_${Math.floor(Math.random() * 1000000)}`;
-      
-      // Define callback functions first
-      const paymentCallback = (response) => {
-        console.log('Payment success:', response);
-        toast?.success('Payment successful! Verifying subscription...');
-        setShowPaymentModal(false);
-        
-        // Call your backend to verify
-        const verifySubscription = async () => {
-          const token = userService.getToken();
-          const verifyResponse = await fetch(`${BASE_URL}/api/v1/subscription/verify-payment`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Accept': 'application/json',
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ 
-              reference: response.reference,
-              plan_id: selectedPlan.id,
-              amount: selectedPlan.amount
-            })
-          });
-          
-          const data = await verifyResponse.json();
-          
-          if (data.status) {
-            toast?.success('Subscription activated! Redirecting...');
-            await refreshSubscription();
-            navigate('/start-selling');
-          } else {
-            toast?.error(data.message || 'Payment verified but activation failed. Contact support.');
-          }
-        };
-        
-        verifySubscription();
-        setProcessingPlan(null);
-      };
-      
-      const paymentOnClose = () => {
-        console.log('Payment window closed');
-        toast?.info('Payment cancelled');
-        setProcessingPlan(null);
-      };
-      
-      // Initialize Paystack
-      const handler = window.PaystackPop.setup({
-        key: PAYSTACK_PUBLIC_KEY,
-        email: email,
-        amount: amount,
-        currency: 'NGN',
-        ref: reference,
-        metadata: {
-          plan_id: selectedPlan.id,
-          plan_name: selectedPlan.name,
-          interval: selectedPlan.interval,
+      // Call backend to initiate subscription
+      const response = await fetch(`${BASE_URL}/api/v1/subscription/initiate`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
         },
-        callback: paymentCallback,
-        onClose: paymentOnClose
+        body: JSON.stringify({
+          plan_id: selectedPlan.id,
+          interval: selectedPlan.interval,
+          amount: selectedPlan.amount
+        })
       });
       
-      handler.openIframe();
-      setShowPaymentModal(false);
+      const data = await response.json();
+      console.log('Initiate subscription response:', data);
       
+      if (data.status && data.data?.authorization_url) {
+        toast?.success('Redirecting to payment...');
+        setShowPaymentModal(false);
+        // Redirect to Paystack checkout URL provided by backend
+        window.location.href = data.data.authorization_url;
+      } else {
+        toast?.error(data.message || 'Failed to initialize subscription. Please try again.');
+        setShowPaymentModal(false);
+      }
     } catch (error) {
-      console.error('Payment error:', error);
-      toast?.error('Failed to initialize payment. Please try again.');
+      console.error('Subscription error:', error);
+      toast?.error('Network error. Please check your connection and try again.');
+      setShowPaymentModal(false);
+    } finally {
       setProcessingPlan(null);
     }
   };
