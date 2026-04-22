@@ -1,3 +1,4 @@
+// src/services/api.js
 import { userService } from './userService';
 
 const BASE_URL = 'https://loopmart.ng';
@@ -36,14 +37,23 @@ class ApiService {
       
       if (response.status === 401) {
         userService.clearUser();
-        throw new Error('Session expired. Please log in again.');
+        // Don't throw immediately, let the caller handle it
+        const error = new Error('Session expired. Please log in again.');
+        error.status = 401;
+        throw error;
       }
 
-      const data = await response.json();
+      // Handle empty response (like for DELETE)
+      const text = await response.text();
+      const data = text ? JSON.parse(text) : {};
+      
       console.log('API Response:', data);
       
       if (!response.ok) {
-        throw new Error(data.message || `Request failed: ${response.status}`);
+        const error = new Error(data.message || `Request failed: ${response.status}`);
+        error.status = response.status;
+        error.data = data;
+        throw error;
       }
 
       return data;
@@ -53,11 +63,11 @@ class ApiService {
     }
   }
 
-  static async get(endpoint) {
+  static async get(endpoint, requiresAuth = true) {
     return this.request(endpoint, { method: 'GET' });
   }
 
-  static async post(endpoint, data, isFormData = false) {
+  static async post(endpoint, data, requiresAuth = true, isFormData = false) {
     const options = {
       method: 'POST',
       body: isFormData ? data : JSON.stringify(data),
@@ -65,7 +75,7 @@ class ApiService {
     return this.request(endpoint, options);
   }
 
-  static async put(endpoint, data, isFormData = false) {
+  static async put(endpoint, data, requiresAuth = true, isFormData = false) {
     const options = {
       method: 'PUT',
       body: isFormData ? data : JSON.stringify(data),
@@ -73,17 +83,21 @@ class ApiService {
     return this.request(endpoint, options);
   }
 
-  static async delete(endpoint, data = null) {
+  static async patch(endpoint, data, requiresAuth = true) {
+    const options = {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    };
+    return this.request(endpoint, options);
+  }
+
+  static async delete(endpoint, data = null, requiresAuth = true) {
     const options = {
       method: 'DELETE',
     };
     
-    // If data is provided, add it to the request body
     if (data) {
       options.body = JSON.stringify(data);
-      options.headers = {
-        'Content-Type': 'application/json',
-      };
     }
     
     return this.request(endpoint, options);
