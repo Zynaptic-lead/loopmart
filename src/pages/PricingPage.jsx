@@ -25,7 +25,7 @@ const vendorPlans = [
     price: '₦1,000',
     period: 'month',
     interval: 'monthly',
-    amount: 1000, // in Naira
+    amount: 1000,
     description: 'Flexible monthly subscription for growing businesses',
     features: [
       { text: 'Dedicated online shop on LoopMart', icon: IoIosBusiness },
@@ -123,9 +123,9 @@ const features = [
   },
 ];
 
-// Load Paystack script dynamically
+// Load Paystack script
 const loadPaystackScript = () => {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     if (window.PaystackPop) {
       resolve();
       return;
@@ -133,6 +133,7 @@ const loadPaystackScript = () => {
     const script = document.createElement('script');
     script.src = 'https://js.paystack.co/v1/inline.js';
     script.onload = () => resolve();
+    script.onerror = () => reject(new Error('Failed to load Paystack script'));
     document.body.appendChild(script);
   });
 };
@@ -281,8 +282,6 @@ export default function PricingPage() {
     try {
       toast?.info('Verifying your payment...');
       
-      // Call your backend to verify payment
-      // You need to create this endpoint in your backend
       const token = userService.getToken();
       const response = await fetch(`${BASE_URL}/api/v1/subscription/verify-payment`, {
         method: 'POST',
@@ -291,7 +290,7 @@ export default function PricingPage() {
           'Accept': 'application/json',
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ reference, plan: selectedPlan?.id })
+        body: JSON.stringify({ reference })
       });
       
       const data = await response.json();
@@ -357,36 +356,14 @@ export default function PricingPage() {
       const amount = selectedPlan.amount * 100; // Convert to kobo
       const reference = `SUB_${selectedPlan.id}_${Date.now()}_${Math.floor(Math.random() * 1000000)}`;
       
-      const handler = window.PaystackPop.setup({
-        key: PAYSTACK_PUBLIC_KEY,
-        email: email,
-        amount: amount,
-        currency: 'NGN',
-        ref: reference,
-        metadata: {
-          plan_id: selectedPlan.id,
-          plan_name: selectedPlan.name,
-          interval: selectedPlan.interval,
-          custom_fields: [
-            {
-              display_name: "Plan",
-              variable_name: "plan",
-              value: selectedPlan.name
-            },
-            {
-              display_name: "Interval",
-              variable_name: "interval",
-              value: selectedPlan.interval
-            }
-          ]
-        },
-        callback: async (response) => {
-          // Payment successful
-          console.log('Payment success:', response);
-          toast?.success('Payment successful! Verifying subscription...');
-          setShowPaymentModal(false);
-          
-          // Call your backend to verify and activate subscription
+      // Define callback functions first
+      const paymentCallback = (response) => {
+        console.log('Payment success:', response);
+        toast?.success('Payment successful! Verifying subscription...');
+        setShowPaymentModal(false);
+        
+        // Call your backend to verify
+        const verifySubscription = async () => {
           const token = userService.getToken();
           const verifyResponse = await fetch(`${BASE_URL}/api/v1/subscription/verify-payment`, {
             method: 'POST',
@@ -411,12 +388,32 @@ export default function PricingPage() {
           } else {
             toast?.error(data.message || 'Payment verified but activation failed. Contact support.');
           }
+        };
+        
+        verifySubscription();
+        setProcessingPlan(null);
+      };
+      
+      const paymentOnClose = () => {
+        console.log('Payment window closed');
+        toast?.info('Payment cancelled');
+        setProcessingPlan(null);
+      };
+      
+      // Initialize Paystack
+      const handler = window.PaystackPop.setup({
+        key: PAYSTACK_PUBLIC_KEY,
+        email: email,
+        amount: amount,
+        currency: 'NGN',
+        ref: reference,
+        metadata: {
+          plan_id: selectedPlan.id,
+          plan_name: selectedPlan.name,
+          interval: selectedPlan.interval,
         },
-        onClose: () => {
-          console.log('Payment window closed');
-          toast?.info('Payment cancelled');
-          setProcessingPlan(null);
-        }
+        callback: paymentCallback,
+        onClose: paymentOnClose
       });
       
       handler.openIframe();
@@ -425,7 +422,6 @@ export default function PricingPage() {
     } catch (error) {
       console.error('Payment error:', error);
       toast?.error('Failed to initialize payment. Please try again.');
-    } finally {
       setProcessingPlan(null);
     }
   };
