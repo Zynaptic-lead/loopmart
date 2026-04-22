@@ -1,4 +1,3 @@
-// src/services/userService.js
 import { AuthService } from './auth';
 
 const BASE_URL = 'https://loopmart.ng';
@@ -22,13 +21,8 @@ export const userService = {
     return AuthService.getToken();
   },
   
-  isAuthenticated: () => {
-    return !!userService.getToken() && !!userService.getUser();
-  },
-  
   clearUser: () => {
     localStorage.removeItem('loopmart_user');
-    localStorage.removeItem('loopmart_subscription');
     AuthService.clearToken();
     userService.notifySubscribers(null);
   },
