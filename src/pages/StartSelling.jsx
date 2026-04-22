@@ -48,16 +48,22 @@ export default function StartSelling() {
     { value: "used", label: "Used" }
   ];
 
-  // Verify subscription on mount
+  // Check subscription on mount
   useEffect(() => {
     const verifySubscription = async () => {
       setChecking(true);
-      const isActive = await refreshSubscription();
-      if (!isActive) {
-        toast?.error('Active subscription required to list products');
+      try {
+        const isActive = await refreshSubscription();
+        if (!isActive) {
+          toast?.error('Active subscription required to list products');
+          navigate('/pricing');
+        }
+      } catch (error) {
+        console.error('Error checking subscription:', error);
         navigate('/pricing');
+      } finally {
+        setChecking(false);
       }
-      setChecking(false);
     };
     
     verifySubscription();
@@ -79,13 +85,13 @@ export default function StartSelling() {
     const files = Array.from(e.target.files);
     
     if (files.length + formData.images.length > 5) {
-      toast.warning('You can only upload up to 5 images');
+      toast?.warning('You can only upload up to 5 images');
       return;
     }
 
     const validFiles = files.filter(file => {
       if (file.size > 10 * 1024 * 1024) {
-        toast.error(`${file.name} is too large. Max size is 10MB`);
+        toast?.error(`${file.name} is too large. Max size is 10MB`);
         return false;
       }
       return true;
@@ -115,33 +121,32 @@ export default function StartSelling() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Validation
     if (!formData.title.trim()) {
-      toast.error('Please enter product title');
+      toast?.error('Please enter product title');
       return;
     }
     if (!formData.category_id) {
-      toast.error('Please select a category');
+      toast?.error('Please select a category');
       return;
     }
     if (!formData.actual_price && formData.ask_for_price === '0') {
-      toast.error('Please enter price');
+      toast?.error('Please enter price');
       return;
     }
     if (!formData.condition) {
-      toast.error('Please select condition');
+      toast?.error('Please select condition');
       return;
     }
     if (!formData.description.trim()) {
-      toast.error('Please enter description');
+      toast?.error('Please enter description');
       return;
     }
     if (!formData.location.trim()) {
-      toast.error('Please enter location');
+      toast?.error('Please enter location');
       return;
     }
     if (formData.images.length === 0) {
-      toast.error('Please upload at least one image');
+      toast?.error('Please upload at least one image');
       return;
     }
 
@@ -150,15 +155,14 @@ export default function StartSelling() {
     try {
       const formDataToSend = new FormData();
       const user = userService.getUser();
-      const token = localStorage.getItem('loopmart_token') || localStorage.getItem('auth_token');
+      const token = userService.getToken();
       
       if (!token) {
-        toast.error('Please login again');
+        toast?.error('Please login again');
         navigate('/login');
         return;
       }
       
-      // Append all fields
       formDataToSend.append('category_id', formData.category_id);
       formDataToSend.append('title', formData.title);
       formDataToSend.append('location', formData.location);
@@ -189,8 +193,7 @@ export default function StartSelling() {
       const response = await ApiService.post('/api/v1/product', formDataToSend, true);
       
       if (response.status) {
-        toast.success('Product listed successfully!');
-        // Reset form
+        toast?.success('Product listed successfully!');
         setFormData({
           title: '',
           category_id: '',
@@ -210,24 +213,25 @@ export default function StartSelling() {
       }
     } catch (error) {
       console.error('Error listing product:', error);
-      toast.error(error.message || 'Failed to list product. Please try again.');
+      toast?.error(error.message || 'Failed to list product. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Loading states
+  // Show loading state
   if (checking || subLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-yellow-50 to-yellow-100 flex items-center justify-center p-4">
         <div className="text-center">
           <Loader className="w-12 h-12 text-yellow-500 animate-spin mx-auto mb-4" />
-          <p className="text-gray-600">Verifying subscription status...</p>
+          <p className="text-gray-600">Checking subscription status...</p>
         </div>
       </div>
     );
   }
 
+  // If no subscription, show message
   if (!hasSubscription) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-yellow-50 to-yellow-100 flex items-center justify-center p-4">
@@ -248,10 +252,11 @@ export default function StartSelling() {
     );
   }
 
-  // Show form for subscribed users
+  // User has subscription - show the selling form
   return (
     <div className="min-h-screen bg-gradient-to-br from-yellow-50 to-yellow-100 py-8">
       <div className="max-w-4xl mx-auto px-4 sm:px-6">
+        {/* Header */}
         <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-6 mb-6">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-3">
@@ -265,6 +270,7 @@ export default function StartSelling() {
           </div>
         </div>
 
+        {/* Main Form */}
         <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-6 md:p-8">
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
