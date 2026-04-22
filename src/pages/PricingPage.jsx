@@ -3,18 +3,16 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { 
-  FaCheck, FaStore, FaCalendarAlt, FaCrown, 
-  FaShieldAlt, FaHeadset, FaGlobe, FaCreditCard,
-  FaUsers, FaStar, FaRocket, FaShoppingCart,
-  FaMoneyBillWave, FaHandshake, FaChartLine,
-  FaTimesCircle, FaBuilding, FaEye, FaMedal,
-  FaLock, FaTrophy, FaArrowRight, FaPercent,
-  FaBolt, FaArrowLeft, FaSpinner, FaTimes
+  FaCheck, FaStore, FaCrown, FaShieldAlt, FaHeadset, FaGlobe, 
+  FaCreditCard, FaUsers, FaRocket, FaShoppingCart, FaHandshake, 
+  FaChartLine, FaTimesCircle, FaBuilding, FaEye, FaMedal, FaLock, 
+  FaTrophy, FaArrowRight, FaPercent, FaBolt, FaSpinner, FaTimes
 } from 'react-icons/fa';
 import { MdAttachMoney, MdTrendingUp } from 'react-icons/md';
 import { IoIosBusiness } from 'react-icons/io';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import { useToast } from '../contexts/ToastContext';
+import { userService } from '../services/userService';
 import logo from '../assets/logo.png';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://loopmart.ng/api';
@@ -25,7 +23,7 @@ const vendorPlans = [
     name: 'Monthly Plan',
     price: '₦1,000',
     period: 'month',
-    interval: 'monthly',
+    plan: 'monthly',
     description: 'Flexible monthly subscription for growing businesses',
     features: [
       { text: 'Dedicated online shop on LoopMart', icon: IoIosBusiness },
@@ -45,7 +43,7 @@ const vendorPlans = [
     name: 'Yearly Plan',
     price: '₦10,000',
     period: 'year',
-    interval: 'yearly',
+    plan: 'yearly',
     description: 'Annual plan with maximum savings & benefits',
     features: [
       { text: 'All Monthly Plan features', icon: FaCheck },
@@ -122,7 +120,6 @@ const features = [
   },
 ];
 
-// Payment Modal Component
 const PaymentModal = ({ isOpen, onClose, plan, onConfirm, processing }) => {
   if (!isOpen) return null;
 
@@ -150,17 +147,6 @@ const PaymentModal = ({ isOpen, onClose, plan, onConfirm, processing }) => {
               <span className="text-3xl font-bold text-black">{plan?.price}</span>
               <span className="text-gray-500">/{plan?.period}</span>
             </div>
-          </div>
-
-          <div className="space-y-3">
-            <h5 className="font-semibold text-gray-700">You'll get:</h5>
-            {plan?.features.slice(0, 3).map((feature, idx) => (
-              <div key={idx} className="flex items-start gap-2">
-                <FaCheck className="text-green-500 mt-1 flex-shrink-0" />
-                <span className="text-gray-600">{feature.text}</span>
-              </div>
-            ))}
-            <p className="text-sm text-gray-500 mt-2">...and {plan?.features.length - 3} more features</p>
           </div>
         </div>
 
@@ -202,7 +188,6 @@ const PaymentModal = ({ isOpen, onClose, plan, onConfirm, processing }) => {
   );
 };
 
-// Login Modal Component
 const LoginPromptModal = ({ isOpen, onClose, onLogin, onSignup }) => {
   if (!isOpen) return null;
 
@@ -226,21 +211,13 @@ const LoginPromptModal = ({ isOpen, onClose, onLogin, onSignup }) => {
         
         <div className="flex flex-col gap-3">
           <button
-            onClick={() => {
-              onLogin();
-              // Optional: Add toast when they click
-              toast?.info('Redirecting to login page...');
-            }}
+            onClick={onLogin}
             className="w-full py-3 bg-yellow-500 text-black font-bold rounded-lg hover:bg-yellow-600 transition"
           >
             Login to Your Account
           </button>
           <button
-            onClick={() => {
-              onSignup();
-              // Optional: Add toast when they click
-              toast?.info('Redirecting to signup page...');
-            }}
+            onClick={onSignup}
             className="w-full py-3 border-2 border-black text-black font-bold rounded-lg hover:bg-gray-50 transition"
           >
             Create New Account
@@ -256,43 +233,72 @@ const LoginPromptModal = ({ isOpen, onClose, onLogin, onSignup }) => {
     </div>
   );
 };
+
 export default function PricingPage() {
   const [activeFAQ, setActiveFAQ] = useState(null);
   const [processingPlan, setProcessingPlan] = useState(null);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState(null);
+  const [verifyingPayment, setVerifyingPayment] = useState(false);
   const navigate = useNavigate();
   const toast = useToast();
+  const [searchParams] = useSearchParams();
   
-  // Use the subscription context
-  const { hasSubscription, setSubscription, checkSubscription } = useSubscription();
+  const { hasSubscription, loading: subLoading, refreshSubscription } = useSubscription();
 
-  // Check subscription status on page load
+  // Check for payment verification on return from Paystack
   useEffect(() => {
-    checkSubscription();
-  }, [checkSubscription]);
-
-  // Helper to get auth token
-  const getToken = () => {
-    return localStorage.getItem('loopmart_token') || localStorage.getItem('auth_token');
-  };
-
-  // Helper to get user data
-  const getUserData = () => {
-    try {
-      const userData = localStorage.getItem('loopmart_user');
-      return userData ? JSON.parse(userData) : null;
-    } catch {
-      return null;
+    const reference = searchParams.get('reference');
+    const trxref = searchParams.get('trxref');
+    const paymentRef = reference || trxref;
+    
+    if (paymentRef && !verifyingPayment) {
+      verifyPayment(paymentRef);
     }
-  };
+  }, [searchParams]);
 
-  const handleGoBack = () => {
-    if (window.history.length > 1) {
-      navigate(-1);
-    } else {
-      navigate('/');
+  const verifyPayment = async (reference) => {
+    setVerifyingPayment(true);
+    
+    try {
+      toast?.info('Verifying your payment...');
+      
+      const token = userService.getToken();
+      // Check subscription status - backend webhook should have updated it
+      const response = await fetch(`${API_URL}/v1/subscription`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      const data = await response.json();
+      console.log('Subscription status after payment:', data);
+      
+      if (data.status && data.data?.active) {
+        toast?.success('Payment successful! Your subscription is now active.');
+        await refreshSubscription();
+        setTimeout(() => {
+          navigate('/start-selling');
+        }, 2000);
+      } else {
+        toast?.info('Payment completed. Your subscription will be activated shortly.');
+        await refreshSubscription();
+        setTimeout(() => {
+          if (hasSubscription) {
+            navigate('/start-selling');
+          }
+        }, 3000);
+      }
+    } catch (error) {
+      console.error('Verification error:', error);
+      toast?.error('Failed to verify payment. Please contact support.');
+    } finally {
+      setVerifyingPayment(false);
+      window.history.replaceState({}, document.title, window.location.pathname);
     }
   };
 
@@ -302,28 +308,20 @@ export default function PricingPage() {
     });
   };
 
-  // Check if user is logged in
   const isUserLoggedIn = () => {
-    const token = getToken();
-    const user = getUserData();
-    return !!token && !!user;
+    return userService.isAuthenticated();
   };
 
   const handlePlanSelection = (plan) => {
-  setSelectedPlan(plan);
-  
-  // Check if user is logged in
-  if (!isUserLoggedIn()) {
-    setShowLoginModal(true);
-    // Add toast with navigation
-    toast?.warning('Please login to subscribe to a plan', 5000, { 
-      path: '/login',
-      label: 'Login now'
-    });
-  } else {
-    setShowPaymentModal(true);
-  }
-};
+    setSelectedPlan(plan);
+    
+    if (!isUserLoggedIn()) {
+      setShowLoginModal(true);
+      toast?.warning('Please login to subscribe to a plan');
+    } else {
+      setShowPaymentModal(true);
+    }
+  };
 
   const handleConfirmPayment = async () => {
     if (!selectedPlan) return;
@@ -331,40 +329,26 @@ export default function PricingPage() {
     setProcessingPlan(selectedPlan.id);
     
     try {
-      const token = getToken();
+      const token = userService.getToken();
       
-     if (!token) {
-  toast?.error('Authentication failed. Please login again.', 5000, { 
-    path: '/login',
-    label: 'Login now'
-  });
-  setShowPaymentModal(false);
-  setShowLoginModal(true);
-  return;
-}
-
-      console.log('🔍 Selected Plan:', selectedPlan);
-      console.log('📦 Interval value:', selectedPlan.interval);
-      console.log('📦 Plan name:', selectedPlan.name);
-      console.log('📦 Plan ID:', selectedPlan.id);
-
-      // Make sure interval exists
-      if (!selectedPlan.interval) {
-        toast?.error('Invalid plan selected. Missing interval.');
-        setProcessingPlan(null);
+      if (!token) {
+        toast?.error('Authentication failed. Please login again.');
+        setShowPaymentModal(false);
+        setShowLoginModal(true);
         return;
       }
 
-      // Prepare request body
+      console.log('Selected Plan:', selectedPlan);
+      console.log('Plan value:', selectedPlan.plan);
+
+      // Prepare request body - USE "plan" as shown in your Postman curl
       const requestBody = {
-        interval: selectedPlan.interval // This should be 'monthly' or 'yearly'
+        plan: selectedPlan.plan  // "monthly" or "yearly"
       };
       
-      console.log('📤 Sending request to:', `${API_URL}/v1/subscription`);
-      console.log('📤 Request body:', requestBody);
-      console.log('🔑 Token exists:', !!token);
+      console.log('Sending request to:', `${API_URL}/v1/subscription`);
+      console.log('Request body:', requestBody);
 
-      // Call the subscription API with 'interval' field
       const response = await fetch(`${API_URL}/v1/subscription`, {
         method: 'POST',
         headers: {
@@ -375,89 +359,54 @@ export default function PricingPage() {
         body: JSON.stringify(requestBody)
       });
 
-      console.log('📥 Response status:', response.status);
+      console.log('Response status:', response.status);
       
       const data = await response.json();
-      console.log('📥 Full API Response:', data);
+      console.log('API Response:', data);
 
       if (data.status && data.data?.authorization_url) {
-        // Success - subscription initialized, redirect to Paystack
         toast?.success('Transaction initialized! Redirecting to payment...');
-        
-        // Close modal
         setShowPaymentModal(false);
-        
-        // Redirect to Paystack checkout
         window.location.href = data.data.authorization_url;
-        
       } else {
-        // Handle API error
         const errorMessage = data.message || data.error || 'Failed to initialize subscription. Please try again.';
-        console.error('❌ API Error:', errorMessage, data);
+        console.error('API Error:', errorMessage, data);
         toast?.error(errorMessage);
         setShowPaymentModal(false);
       }
     } catch (error) {
-      console.error('❌ Network/Subscription error:', error);
+      console.error('Network/Subscription error:', error);
       toast?.error('Network error. Please check your connection and try again.');
       setShowPaymentModal(false);
     } finally {
       setProcessingPlan(null);
-      setSelectedPlan(null);
     }
   };
 
- const handleStartSelling = () => {
-  // First check if user is subscribed
-  const isSubscribed = hasSubscription || checkSubscription();
-  
-  if (isSubscribed) {
-    // If subscribed, go to start selling page
-    navigate('/start-selling');
-  } else {
-    // If not subscribed, stay on pricing page and scroll to plans
-    scrollToPlans();
-    toast?.info('Please subscribe to a plan to start selling!', 5000, { 
-      path: '/pricing#pricing-plans',
-      label: 'View plans'
-    });
-  }
-};
-
-  // Fetch subscription status on mount
-  useEffect(() => {
-    const fetchSubscriptionStatus = async () => {
-      const token = getToken();
-      if (!token) return;
-      
-      try {
-        const response = await fetch(`${API_URL}/v1/subscription`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Accept': 'application/json',
-            'Content-Type': 'application/json'
-          }
-        });
-        
-        const data = await response.json();
-        console.log('📥 Subscription status response:', data);
-        
-        if (data.status && data.data) {
-          // Update subscription context with data from API
-          if (data.data.active) {
-            const expiryDate = new Date(data.data.expires_at);
-            setSubscription(true, expiryDate);
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching subscription:', error);
-      }
-    };
+  const handleStartSelling = async () => {
+    const isSubscribed = await refreshSubscription();
     
-    fetchSubscriptionStatus();
-  }, [setSubscription]);
+    if (isSubscribed) {
+      navigate('/start-selling');
+    } else {
+      scrollToPlans();
+      toast?.info('Please subscribe to a plan to start selling!');
+    }
+  };
 
-  // Subscription Status Banner (if already subscribed)
+  if (subLoading || verifyingPayment) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <FaSpinner className="animate-spin text-4xl text-yellow-500 mx-auto mb-4" />
+          <p className="text-gray-600">
+            {verifyingPayment ? 'Verifying your payment...' : 'Loading...'}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   const SubscriptionStatusBanner = () => {
     if (!hasSubscription) return null;
     
@@ -484,7 +433,16 @@ export default function PricingPage() {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Login Modal */}
+      {verifyingPayment && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-8 text-center">
+            <FaSpinner className="animate-spin text-4xl text-yellow-500 mx-auto mb-4" />
+            <h3 className="text-xl font-bold mb-2">Verifying Payment</h3>
+            <p className="text-gray-600">Please wait while we confirm your subscription...</p>
+          </div>
+        </div>
+      )}
+
       <LoginPromptModal
         isOpen={showLoginModal}
         onClose={() => {
@@ -493,15 +451,14 @@ export default function PricingPage() {
         }}
         onLogin={() => {
           setShowLoginModal(false);
-            navigate('/login?redirect=/pricing');
+          navigate('/login?redirect=/pricing');
         }}
         onSignup={() => {
           setShowLoginModal(false);
-           navigate('/signup?redirect=/pricing'); 
+          navigate('/signup?redirect=/pricing');
         }}
       />
 
-      {/* Payment Modal */}
       <PaymentModal
         isOpen={showPaymentModal}
         onClose={() => {
@@ -513,20 +470,16 @@ export default function PricingPage() {
         processing={processingPlan === selectedPlan?.id}
       />
 
-      {/* Header with Logo */}
+      {/* Header */}
       <div className="py-4 border-b border-gray-200 bg-white sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <img 
-                src={logo} 
-                alt="LoopMart Logo" 
-                className="h-10 w-auto cursor-pointer"
-                onClick={() => navigate('/')}
-              />
-            </div>
-            
-            <div className="w-20"></div>
+            <img 
+              src={logo} 
+              alt="LoopMart Logo" 
+              className="h-10 w-auto cursor-pointer"
+              onClick={() => navigate('/')}
+            />
           </div>
         </div>
       </div>
@@ -597,7 +550,6 @@ export default function PricingPage() {
           </motion.div>
         </div>
 
-        {/* Show subscription status if active */}
         <SubscriptionStatusBanner />
 
         <div className="grid md:grid-cols-2 gap-8 lg:gap-12 max-w-6xl mx-auto">
@@ -919,21 +871,6 @@ export default function PricingPage() {
               >
                 Schedule Business Consultation
               </button>
-            </div>
-            
-            <div className="mt-10 grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-xl mx-auto">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-white">No Setup Fee</div>
-                <div className="text-sm text-gray-400">Start instantly</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-white">30-Day Trial</div>
-                <div className="text-sm text-gray-400">Risk-free start</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-white">24/7 Support</div>
-                <div className="text-sm text-gray-400">Always available</div>
-              </div>
             </div>
           </motion.div>
         </div>
