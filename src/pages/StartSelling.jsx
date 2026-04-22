@@ -1,7 +1,8 @@
+// src/pages/StartSelling.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSubscription } from '../contexts/SubscriptionContext';
-import { Store, Shield, Users, TrendingUp, ArrowRight, Loader, MapPin, Phone, Image as ImageIcon } from 'lucide-react';
+import { Store, Shield, Users, TrendingUp, ArrowRight, Loader, ImageIcon } from 'lucide-react';
 import logo from '../assets/logo.png';
 import { useToast } from '../contexts/ToastContext';
 import { userService } from '../services/userService';
@@ -9,12 +10,12 @@ import ApiService from '../services/api';
 
 export default function StartSelling() {
   const navigate = useNavigate();
-  const { hasSubscription, checkSubscription, loading } = useSubscription();
+  const { hasSubscription, loading: subLoading, refreshSubscription } = useSubscription();
   const [checking, setChecking] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const toast = useToast();
 
-  // Form state - matching the API requirements
+  // Form state
   const [formData, setFormData] = useState({
     title: '',
     category_id: '',
@@ -48,23 +49,33 @@ export default function StartSelling() {
     { value: "used", label: "Used" }
   ];
 
-  // Check subscription on mount - fixed dependency
+  // Check subscription on mount
   useEffect(() => {
     const verifySubscription = async () => {
       setChecking(true);
-      await checkSubscription();
-      setChecking(false);
+      try {
+        const isActive = await refreshSubscription();
+        if (!isActive) {
+          toast?.error('Active subscription required to list products');
+          navigate('/pricing');
+        }
+      } catch (error) {
+        console.error('Error checking subscription:', error);
+        navigate('/pricing');
+      } finally {
+        setChecking(false);
+      }
     };
     
     verifySubscription();
-  }, []); // Empty dependency array - runs only once
+  }, []);
 
-  // Handle redirect for non-subscribed users
+  // Redirect if no subscription after check
   useEffect(() => {
-    if (!loading && !checking && !hasSubscription) {
+    if (!checking && !subLoading && !hasSubscription) {
       navigate('/pricing');
     }
-  }, [loading, checking, hasSubscription, navigate]);
+  }, [checking, subLoading, hasSubscription, navigate]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -74,22 +85,19 @@ export default function StartSelling() {
   const handleImageUpload = (e) => {
     const files = Array.from(e.target.files);
     
-    // Limit to 5 images
     if (files.length + formData.images.length > 5) {
-      toast.warning('You can only upload up to 5 images');
+      toast?.warning('You can only upload up to 5 images');
       return;
     }
 
-    // Validate file size (10MB max)
     const validFiles = files.filter(file => {
       if (file.size > 10 * 1024 * 1024) {
-        toast.error(`${file.name} is too large. Max size is 10MB`);
+        toast?.error(`${file.name} is too large. Max size is 10MB`);
         return false;
       }
       return true;
     });
 
-    // Create previews
     const newPreviews = validFiles.map(file => URL.createObjectURL(file));
     
     setFormData(prev => ({
@@ -101,7 +109,6 @@ export default function StartSelling() {
   };
 
   const removeImage = (index) => {
-    // Revoke object URL to free memory
     URL.revokeObjectURL(imagePreviews[index]);
     
     setFormData(prev => ({
@@ -117,31 +124,31 @@ export default function StartSelling() {
     
     // Validate form
     if (!formData.title.trim()) {
-      toast.error('Please enter product title');
+      toast?.error('Please enter product title');
       return;
     }
     if (!formData.category_id) {
-      toast.error('Please select a category');
+      toast?.error('Please select a category');
       return;
     }
     if (!formData.actual_price && formData.ask_for_price === '0') {
-      toast.error('Please enter price');
+      toast?.error('Please enter price');
       return;
     }
     if (!formData.condition) {
-      toast.error('Please select condition');
+      toast?.error('Please select condition');
       return;
     }
     if (!formData.description.trim()) {
-      toast.error('Please enter description');
+      toast?.error('Please enter description');
       return;
     }
     if (!formData.location.trim()) {
-      toast.error('Please enter location');
+      toast?.error('Please enter location');
       return;
     }
     if (formData.images.length === 0) {
-      toast.error('Please upload at least one image');
+      toast?.error('Please upload at least one image');
       return;
     }
 
@@ -149,11 +156,15 @@ export default function StartSelling() {
 
     try {
       const formDataToSend = new FormData();
-      
-      // Get user data
       const user = userService.getUser();
+      const token = userService.getToken();
       
-      // Append all required fields according to API doc
+      if (!token) {
+        toast?.error('Please login again');
+        navigate('/login');
+        return;
+      }
+      
       formDataToSend.append('category_id', formData.category_id);
       formDataToSend.append('title', formData.title);
       formDataToSend.append('location', formData.location);
@@ -162,55 +173,62 @@ export default function StartSelling() {
       formDataToSend.append('condition', formData.condition);
       formDataToSend.append('ask_for_price', formData.ask_for_price);
       
-      // Add user info (optional - your API might need these)
       if (user) {
         formDataToSend.append('user_id', user.id);
         formDataToSend.append('username', user.username || user.name || '');
       }
       
-      // Only send actual_price if ask_for_price is 0 (false)
       if (formData.ask_for_price === '0') {
         formDataToSend.append('actual_price', formData.actual_price);
       }
       
-      // Send promo_price if provided
       if (formData.promo_price) {
         formDataToSend.append('promo_price', formData.promo_price);
       }
       
-      // Append images (the API expects 'image_url' field)
       formData.images.forEach((image) => {
         formDataToSend.append('image_url', image);
       });
 
-      console.log('Submitting product data...');
+      console.log('Submitting product...');
       
-      // Make API call - correct endpoint from your doc
       const response = await ApiService.post('/api/v1/product', formDataToSend, true);
       
-      console.log('Product creation response:', response);
-      
       if (response.status) {
-        toast.success('Product listed successfully!');
+        toast?.success('Product listed successfully!');
+        // Reset form
+        setFormData({
+          title: '',
+          category_id: '',
+          actual_price: '',
+          condition: '',
+          description: '',
+          location: '',
+          quantity: '1',
+          ask_for_price: '0',
+          promo_price: '',
+          images: []
+        });
+        setImagePreviews([]);
         navigate('/selling-success');
       } else {
         throw new Error(response.message || 'Failed to list product');
       }
     } catch (error) {
       console.error('Error listing product:', error);
-      toast.error(error.message || 'Failed to list product. Please try again.');
+      toast?.error(error.message || 'Failed to list product. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
   // Show loading state
-  if (loading || checking) {
+  if (checking || subLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-yellow-50 to-yellow-100 flex items-center justify-center p-4">
         <div className="text-center">
           <Loader className="w-12 h-12 text-yellow-500 animate-spin mx-auto mb-4" />
-          <p className="text-gray-600">Checking subscription status...</p>
+          <p className="text-gray-600">Verifying subscription...</p>
         </div>
       </div>
     );
@@ -224,7 +242,7 @@ export default function StartSelling() {
           <Shield className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-gray-800 mb-2">Subscription Required</h2>
           <p className="text-gray-600 mb-6">
-            You need an active subscription to start selling. Please subscribe to a plan to continue.
+            You need an active subscription to list products. Please subscribe to a plan to continue.
           </p>
           <button
             onClick={() => navigate('/pricing')}
@@ -241,7 +259,7 @@ export default function StartSelling() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-yellow-50 to-yellow-100 py-8">
       <div className="max-w-4xl mx-auto px-4 sm:px-6">
-        {/* Header - Made responsive */}
+        {/* Header */}
         <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-6 mb-6">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-3">
@@ -258,7 +276,6 @@ export default function StartSelling() {
         {/* Main Form */}
         <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-6 md:p-8">
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Product Details */}
             <div>
               <h2 className="text-base sm:text-lg font-semibold text-gray-800 mb-4">Product Details</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -414,9 +431,6 @@ export default function StartSelling() {
                       <span className="ml-2 text-sm text-gray-700">Yes, contact for price</span>
                     </label>
                   </div>
-                  {formData.ask_for_price === '0' && !formData.actual_price && (
-                    <p className="text-xs text-red-500 mt-1">Price is required when "Show price" is selected</p>
-                  )}
                 </div>
 
                 <div className="sm:col-span-2">
@@ -444,7 +458,6 @@ export default function StartSelling() {
                     </p>
                   </div>
 
-                  {/* Image Previews */}
                   {imagePreviews.length > 0 && (
                     <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 sm:gap-3 mt-4">
                       {imagePreviews.map((preview, index) => (
@@ -469,7 +482,6 @@ export default function StartSelling() {
               </div>
             </div>
 
-            {/* Submit Button */}
             <button
               type="submit"
               disabled={isSubmitting}
@@ -490,7 +502,6 @@ export default function StartSelling() {
             </button>
           </form>
 
-          {/* Benefits */}
           <div className="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-4 pt-6 border-t border-gray-200">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-blue-100 rounded-lg">
