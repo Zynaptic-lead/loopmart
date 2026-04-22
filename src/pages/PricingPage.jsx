@@ -1,8 +1,7 @@
-// src/pages/PricingPage.jsx - Simplified version with only GET endpoint
-
+// src/pages/PricingPage.jsx
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { 
   FaCheck, FaStore, FaCrown, FaShieldAlt, FaHeadset, FaGlobe, 
   FaCreditCard, FaUsers, FaRocket, FaShoppingCart, FaHandshake, 
@@ -15,6 +14,8 @@ import { useSubscription } from '../contexts/SubscriptionContext';
 import { useToast } from '../contexts/ToastContext';
 import { userService } from '../services/userService';
 import logo from '../assets/logo.png';
+
+const BASE_URL = 'https://loopmart.ng';
 
 const vendorPlans = [
   {
@@ -241,10 +242,67 @@ export default function PricingPage() {
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState(null);
+  const [verifyingPayment, setVerifyingPayment] = useState(false);
   const navigate = useNavigate();
   const toast = useToast();
+  const [searchParams] = useSearchParams();
   
   const { hasSubscription, loading: subLoading, refreshSubscription } = useSubscription();
+
+  // Check for payment verification on return from Paystack
+  useEffect(() => {
+    const reference = searchParams.get('reference');
+    const trxref = searchParams.get('trxref');
+    const paymentRef = reference || trxref;
+    
+    if (paymentRef && !verifyingPayment) {
+      verifyPayment(paymentRef);
+    }
+  }, [searchParams]);
+
+  const verifyPayment = async (reference) => {
+    setVerifyingPayment(true);
+    
+    try {
+      toast?.info('Verifying your payment...');
+      
+      const token = userService.getToken();
+      // Check subscription status - backend webhook should have updated it
+      const response = await fetch(`${BASE_URL}/api/v1/subscription`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      const data = await response.json();
+      console.log('Subscription status after payment:', data);
+      
+      if (data.status && data.data?.active) {
+        toast?.success('Payment successful! Your subscription is now active.');
+        await refreshSubscription();
+        setTimeout(() => {
+          navigate('/start-selling');
+        }, 2000);
+      } else {
+        toast?.info('Payment completed. Your subscription will be activated shortly.');
+        await refreshSubscription();
+        setTimeout(() => {
+          if (hasSubscription) {
+            navigate('/start-selling');
+          }
+        }, 3000);
+      }
+    } catch (error) {
+      console.error('Verification error:', error);
+      toast?.error('Failed to verify payment. Please contact support.');
+    } finally {
+      setVerifyingPayment(false);
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  };
 
   const scrollToPlans = () => {
     document.getElementById('pricing-plans')?.scrollIntoView({ 
@@ -263,8 +321,6 @@ export default function PricingPage() {
       setShowLoginModal(true);
       toast?.warning('Please login to subscribe to a plan');
     } else {
-      // Show payment modal with instructions
-      toast?.info('Subscription payment is handled by the backend team. Please contact support to complete your subscription.');
       setShowPaymentModal(true);
     }
   };
@@ -274,10 +330,45 @@ export default function PricingPage() {
     
     setProcessingPlan(selectedPlan.id);
     
-    // Since there's no initiate endpoint, show a message
-    toast?.info('The subscription payment system is being set up. Please contact support to complete your subscription.');
-    setProcessingPlan(null);
-    setShowPaymentModal(false);
+    try {
+      const token = userService.getToken();
+      
+      // POST /api/v1/subscription - Initialize subscription
+      const response = await fetch(`${BASE_URL}/api/v1/subscription`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          interval: selectedPlan.interval  // "monthly" or "yearly"
+        })
+      });
+      
+      const data = await response.json();
+      console.log('Initialize subscription response:', data);
+      
+      if (data.status && data.data?.authorization_url) {
+        toast?.success('Redirecting to payment...');
+        setShowPaymentModal(false);
+        // Store the reference if provided
+        if (data.data.reference) {
+          sessionStorage.setItem('subscription_ref', data.data.reference);
+        }
+        // Redirect to Paystack checkout
+        window.location.href = data.data.authorization_url;
+      } else {
+        toast?.error(data.message || 'Failed to initialize subscription. Please try again.');
+        setShowPaymentModal(false);
+      }
+    } catch (error) {
+      console.error('Subscription error:', error);
+      toast?.error('Network error. Please check your connection and try again.');
+      setShowPaymentModal(false);
+    } finally {
+      setProcessingPlan(null);
+    }
   };
 
   const handleStartSelling = async () => {
@@ -291,12 +382,14 @@ export default function PricingPage() {
     }
   };
 
-  if (subLoading) {
+  if (subLoading || verifyingPayment) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
           <FaSpinner className="animate-spin text-4xl text-yellow-500 mx-auto mb-4" />
-          <p className="text-gray-600">Loading...</p>
+          <p className="text-gray-600">
+            {verifyingPayment ? 'Verifying your payment...' : 'Loading...'}
+          </p>
         </div>
       </div>
     );
@@ -328,6 +421,16 @@ export default function PricingPage() {
 
   return (
     <div className="min-h-screen bg-white">
+      {verifyingPayment && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-8 text-center">
+            <FaSpinner className="animate-spin text-4xl text-yellow-500 mx-auto mb-4" />
+            <h3 className="text-xl font-bold mb-2">Verifying Payment</h3>
+            <p className="text-gray-600">Please wait while we confirm your subscription...</p>
+          </div>
+        </div>
+      )}
+
       <LoginPromptModal
         isOpen={showLoginModal}
         onClose={() => {
