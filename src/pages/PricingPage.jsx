@@ -13,8 +13,10 @@ import { IoIosBusiness } from 'react-icons/io';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import { useToast } from '../contexts/ToastContext';
 import { userService } from '../services/userService';
-import subscriptionService from '../services/subscriptionService';
 import logo from '../assets/logo.png';
+
+const PAYSTACK_PUBLIC_KEY = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || 'pk_test_...';
+const BASE_URL = 'https://loopmart.ng';
 
 const vendorPlans = [
   {
@@ -23,6 +25,7 @@ const vendorPlans = [
     price: '₦1,000',
     period: 'month',
     interval: 'monthly',
+    amount: 1000, // in Naira
     description: 'Flexible monthly subscription for growing businesses',
     features: [
       { text: 'Dedicated online shop on LoopMart', icon: IoIosBusiness },
@@ -43,6 +46,7 @@ const vendorPlans = [
     price: '₦10,000',
     period: 'year',
     interval: 'yearly',
+    amount: 10000,
     description: 'Annual plan with maximum savings & benefits',
     features: [
       { text: 'All Monthly Plan features', icon: FaCheck },
@@ -118,6 +122,20 @@ const features = [
     icon: FaHeadset,
   },
 ];
+
+// Load Paystack script dynamically
+const loadPaystackScript = () => {
+  return new Promise((resolve) => {
+    if (window.PaystackPop) {
+      resolve();
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = 'https://js.paystack.co/v1/inline.js';
+    script.onload = () => resolve();
+    document.body.appendChild(script);
+  });
+};
 
 const PaymentModal = ({ isOpen, onClose, plan, onConfirm, processing }) => {
   if (!isOpen) return null;
@@ -246,7 +264,7 @@ export default function PricingPage() {
   
   const { hasSubscription, loading: subLoading, refreshSubscription } = useSubscription();
 
-  // Check for payment verification on return
+  // Check for payment verification on return from Paystack
   useEffect(() => {
     const reference = searchParams.get('reference');
     const trxref = searchParams.get('trxref');
@@ -263,28 +281,36 @@ export default function PricingPage() {
     try {
       toast?.info('Verifying your payment...');
       
-      // Use subscription service to verify payment
-      const response = await subscriptionService.verifyPayment(reference);
+      // Call your backend to verify payment
+      // You need to create this endpoint in your backend
+      const token = userService.getToken();
+      const response = await fetch(`${BASE_URL}/api/v1/subscription/verify-payment`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ reference, plan: selectedPlan?.id })
+      });
       
-      console.log('Payment verification response:', response);
+      const data = await response.json();
+      console.log('Payment verification response:', data);
       
-      if (response.status && response.data?.active) {
+      if (data.status && data.data?.active) {
         toast?.success('Payment verified! Your subscription is now active.');
-        // Refresh subscription status
         await refreshSubscription();
-        // Redirect to start selling after 2 seconds
         setTimeout(() => {
           navigate('/start-selling');
         }, 2000);
       } else {
-        toast?.error(response.message || 'Payment verification failed. Please contact support.');
+        toast?.error(data.message || 'Payment verification failed. Please contact support.');
       }
     } catch (error) {
       console.error('Verification error:', error);
       toast?.error('Failed to verify payment. Please contact support.');
     } finally {
       setVerifyingPayment(false);
-      // Clean URL
       window.history.replaceState({}, document.title, window.location.pathname);
     }
   };
@@ -316,39 +342,95 @@ export default function PricingPage() {
     setProcessingPlan(selectedPlan.id);
     
     try {
-      // Use subscription service to initiate payment
-      const response = await subscriptionService.initiateSubscription({
-        plan_id: selectedPlan.id,
-        interval: selectedPlan.interval,
-        plan: selectedPlan.id
+      // Load Paystack script
+      await loadPaystackScript();
+      
+      const user = userService.getUser();
+      const email = user?.email || user?.email_address;
+      
+      if (!email) {
+        toast?.error('User email not found. Please update your profile.');
+        setProcessingPlan(null);
+        return;
+      }
+      
+      const amount = selectedPlan.amount * 100; // Convert to kobo
+      const reference = `SUB_${selectedPlan.id}_${Date.now()}_${Math.floor(Math.random() * 1000000)}`;
+      
+      const handler = window.PaystackPop.setup({
+        key: PAYSTACK_PUBLIC_KEY,
+        email: email,
+        amount: amount,
+        currency: 'NGN',
+        ref: reference,
+        metadata: {
+          plan_id: selectedPlan.id,
+          plan_name: selectedPlan.name,
+          interval: selectedPlan.interval,
+          custom_fields: [
+            {
+              display_name: "Plan",
+              variable_name: "plan",
+              value: selectedPlan.name
+            },
+            {
+              display_name: "Interval",
+              variable_name: "interval",
+              value: selectedPlan.interval
+            }
+          ]
+        },
+        callback: async (response) => {
+          // Payment successful
+          console.log('Payment success:', response);
+          toast?.success('Payment successful! Verifying subscription...');
+          setShowPaymentModal(false);
+          
+          // Call your backend to verify and activate subscription
+          const token = userService.getToken();
+          const verifyResponse = await fetch(`${BASE_URL}/api/v1/subscription/verify-payment`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Accept': 'application/json',
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ 
+              reference: response.reference,
+              plan_id: selectedPlan.id,
+              amount: selectedPlan.amount
+            })
+          });
+          
+          const data = await verifyResponse.json();
+          
+          if (data.status) {
+            toast?.success('Subscription activated! Redirecting...');
+            await refreshSubscription();
+            navigate('/start-selling');
+          } else {
+            toast?.error(data.message || 'Payment verified but activation failed. Contact support.');
+          }
+        },
+        onClose: () => {
+          console.log('Payment window closed');
+          toast?.info('Payment cancelled');
+          setProcessingPlan(null);
+        }
       });
       
-      console.log('Initiate subscription response:', response);
-      
-      if (response.status && response.data?.authorization_url) {
-        toast?.success('Redirecting to payment...');
-        setShowPaymentModal(false);
-        // Store reference if provided
-        if (response.data.reference) {
-          sessionStorage.setItem('pending_subscription_ref', response.data.reference);
-        }
-        // Redirect to payment page
-        window.location.href = response.data.authorization_url;
-      } else {
-        toast?.error(response.message || 'Failed to initialize subscription. Please try again.');
-        setShowPaymentModal(false);
-      }
-    } catch (error) {
-      console.error('Subscription error:', error);
-      toast?.error(error.message || 'Network error. Please check your connection and try again.');
+      handler.openIframe();
       setShowPaymentModal(false);
+      
+    } catch (error) {
+      console.error('Payment error:', error);
+      toast?.error('Failed to initialize payment. Please try again.');
     } finally {
       setProcessingPlan(null);
     }
   };
 
   const handleStartSelling = async () => {
-    // Refresh subscription status first
     const isSubscribed = await refreshSubscription();
     
     if (isSubscribed) {
@@ -359,7 +441,6 @@ export default function PricingPage() {
     }
   };
 
-  // Show loading state
   if (subLoading || verifyingPayment) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
@@ -399,7 +480,6 @@ export default function PricingPage() {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Payment Verification Overlay */}
       {verifyingPayment && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-8 text-center">
@@ -410,7 +490,6 @@ export default function PricingPage() {
         </div>
       )}
 
-      {/* Modals */}
       <LoginPromptModal
         isOpen={showLoginModal}
         onClose={() => {
