@@ -10,7 +10,7 @@ import ApiService from '../services/api';
 
 export default function StartSelling() {
   const navigate = useNavigate();
-  const { hasSubscription, loading: subLoading, refreshSubscription } = useSubscription();
+  const { hasSubscription, loading: subLoading, checkSubscription } = useSubscription();
   const [checking, setChecking] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const toast = useToast();
@@ -49,18 +49,36 @@ export default function StartSelling() {
     { value: "used", label: "Used" }
   ];
 
-  // Check subscription on mount
+  // Check subscription on mount - Use the context's checkSubscription
   useEffect(() => {
     const verifySubscription = async () => {
       setChecking(true);
       try {
-        const isActive = await refreshSubscription();
+        // First, check if user is logged in
+        const token = userService.getToken();
+        if (!token) {
+          console.log('No token found, redirecting to login');
+          toast?.error('Please login to continue');
+          navigate('/login');
+          return;
+        }
+
+        // Check subscription status using context
+        console.log('Verifying subscription status...');
+        const isActive = await checkSubscription();
+        console.log('Subscription active status:', isActive);
+        
         if (!isActive) {
+          console.log('No active subscription, redirecting to pricing');
           toast?.error('Active subscription required to list products');
           navigate('/pricing');
+          return;
         }
+        
+        console.log('Active subscription confirmed!');
       } catch (error) {
         console.error('Error checking subscription:', error);
+        toast?.error('Unable to verify subscription. Please try again.');
         navigate('/pricing');
       } finally {
         setChecking(false);
@@ -68,14 +86,18 @@ export default function StartSelling() {
     };
     
     verifySubscription();
-  }, []);
+  }, []); // Empty dependency array - run once on mount
 
-  // Redirect if no subscription after check
+  // Also check when hasSubscription changes (in case it updates after initial check)
   useEffect(() => {
-    if (!checking && !subLoading && !hasSubscription) {
-      navigate('/pricing');
+    if (!checking && !subLoading) {
+      console.log('Subscription state changed:', { hasSubscription, checking, subLoading });
+      if (!hasSubscription) {
+        console.log('No subscription detected, redirecting to pricing');
+        navigate('/pricing');
+      }
     }
-  }, [checking, subLoading, hasSubscription, navigate]);
+  }, [hasSubscription, checking, subLoading, navigate]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -121,6 +143,14 @@ export default function StartSelling() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Double-check subscription before submitting
+    const isActive = await checkSubscription();
+    if (!isActive) {
+      toast?.error('Your subscription has expired. Please renew to continue.');
+      navigate('/pricing');
+      return;
+    }
     
     // Validate form
     if (!formData.title.trim()) {
@@ -234,7 +264,7 @@ export default function StartSelling() {
     );
   }
 
-  // If no subscription, show message
+  // If no subscription, show message instead of redirecting immediately
   if (!hasSubscription) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-yellow-50 to-yellow-100 flex items-center justify-center p-4">
