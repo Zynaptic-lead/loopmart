@@ -1,4 +1,4 @@
-// src/components/VerificationModal.jsx
+// src/components/VerificationModal.jsx - RESPONSIVE WITH FLAT COLORS
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -7,7 +7,6 @@ import {
   FaVenusMars, FaGlobe, FaCrown, FaStar,
   FaFileAlt, FaCamera, FaCreditCard, FaSpinner
 } from 'react-icons/fa';
-import { VscPass } from "react-icons/vsc";
 import { IoMdCheckmarkCircleOutline } from "react-icons/io";
 import { userService } from '../../services/userService';
 
@@ -40,13 +39,8 @@ const ApiService = {
     }
 
     try {
-      // Remove any duplicate /api in the endpoint
       const cleanEndpoint = endpoint.startsWith('/api') ? endpoint : `/api${endpoint}`;
       const url = `${this.baseURL.replace('/api', '')}${cleanEndpoint}`;
-      
-      console.log('🔗 Fetching:', url);
-      console.log('🔑 Token exists:', !!token);
-      console.log('📤 Method:', method);
       
       const response = await fetch(url, {
         method,
@@ -55,10 +49,7 @@ const ApiService = {
         body,
       });
       
-      console.log('📨 Response status:', response.status);
-      
       const responseText = await response.text();
-      console.log('📨 Response text:', responseText);
       
       if (response.status === 401) {
         throw new Error('Session expired. Please log in again.');
@@ -135,7 +126,6 @@ export default function VerificationModal({ isOpen, onClose, user }) {
       address: formData.address
     };
 
-    console.log('📤 Sending bio data:', bioData);
     return await apiRequest('/v1/verify/bio', bioData);
   };
 
@@ -147,12 +137,6 @@ export default function VerificationModal({ isOpen, onClose, user }) {
 
     const formDataToSend = new FormData();
     formDataToSend.append('nin_file', formData.ninFile);
-
-    console.log('📤 Sending National ID Card:', {
-      fileName: formData.ninFile.name,
-      fileSize: formData.ninFile.size,
-      fileType: formData.ninFile.type
-    });
 
     return await apiRequest('/v1/verify/nin', formDataToSend);
   };
@@ -167,12 +151,6 @@ export default function VerificationModal({ isOpen, onClose, user }) {
       canvasImage: formData.capturedImage
     };
 
-    console.log('📤 Sending face image:', {
-      dataType: 'data_url',
-      length: formData.capturedImage.length,
-      isBase64: true
-    });
-
     return await apiRequest('/v1/verify/image', requestData);
   };
 
@@ -184,8 +162,6 @@ export default function VerificationModal({ isOpen, onClose, user }) {
 
     const badgeFormData = new FormData();
     badgeFormData.append('badge_type', selectedPlan);
-
-    console.log('📤 Sending badge type:', { badge_type: selectedPlan });
     
     return await apiRequest('/v1/verify/badge', badgeFormData);
   };
@@ -196,8 +172,6 @@ export default function VerificationModal({ isOpen, onClose, user }) {
       throw new Error('No plan selected');
     }
 
-    console.log('💰 Initializing payment for plan:', selectedPlan);
-    
     return await apiRequest(`/v1/payment/init?badge_type=${selectedPlan}`, null, 'GET');
   };
 
@@ -208,8 +182,6 @@ export default function VerificationModal({ isOpen, onClose, user }) {
     setIsProcessing(true);
 
     try {
-      console.log(`🔄 Processing step ${currentStep}`);
-      
       switch (currentStep) {
         case 1:
           nextStep();
@@ -224,7 +196,6 @@ export default function VerificationModal({ isOpen, onClose, user }) {
           }
           
           const bioResponse = await submitBioData();
-          console.log('✅ Bio data submitted:', bioResponse);
           
           if (bioResponse.status) {
             setSuccessMessage('Personal information submitted successfully!');
@@ -240,7 +211,6 @@ export default function VerificationModal({ isOpen, onClose, user }) {
           }
 
           const docResponse = await submitDocumentData();
-          console.log('✅ National ID Card submitted:', docResponse);
           
           if (docResponse.status) {
             setSuccessMessage('ID Card uploaded successfully!');
@@ -256,7 +226,6 @@ export default function VerificationModal({ isOpen, onClose, user }) {
           }
           
           const imageResponse = await submitFaceImage();
-          console.log('✅ Face image submitted:', imageResponse);
           
           if (imageResponse.status) {
             setSuccessMessage('Face verification completed successfully!');
@@ -272,7 +241,6 @@ export default function VerificationModal({ isOpen, onClose, user }) {
           }
           
           const badgeResponse = await submitBadgeType();
-          console.log('✅ Badge type submitted:', badgeResponse);
           
           if (badgeResponse.status) {
             setSuccessMessage('Plan selected successfully!');
@@ -284,7 +252,6 @@ export default function VerificationModal({ isOpen, onClose, user }) {
         
         case 6:
           const paymentResponse = await initializePayment();
-          console.log('✅ Payment initialized:', paymentResponse);
           
           const paystackUrl = paymentResponse.paystack_url || paymentResponse.data?.authorization_url;
           
@@ -297,17 +264,13 @@ export default function VerificationModal({ isOpen, onClose, user }) {
             setPaymentData(paymentData);
             setSuccessMessage('Payment link generated! Click "Pay Now" to complete.');
             
-            console.log('🔗 Paystack URL:', paystackUrl);
-            
             nextStep();
           } else {
-            console.error('❌ Payment initialization failed:', paymentResponse);
             throw new Error(paymentResponse.message || 'Failed to generate payment link. Please try again.');
           }
           break;
 
         case 7:
-          // Payment step - handled by button click
           break;
       }
     } catch (error) {
@@ -484,45 +447,45 @@ export default function VerificationModal({ isOpen, onClose, user }) {
   };
 
   const benefits = [
-    "Enhanced Trust and Credibility: A verified badge signals to potential buyers that the seller's identity and information have been verified by us.",
-    "Increased Visibility: We prioritize verified sellers in search results and featured listings for more exposure and sales opportunities.",
-    "Improved Conversion Rates: Buyers are more likely to purchase from sellers they trust, leading to higher conversion rates.",
-    "Reduce Risk Of Fraud: Verification processes help weed out fraudulent or untrustworthy sellers.",
-    "Access to Premium Features: Exclusive features and benefits including promotional opportunities and dedicated customer support.",
-    "Competitive Advantage: Differentiate yourself from competitors and attract more customers.",
-    "Long-term Reputation Building: Build a positive reputation leading to repeat business and referrals."
+    "Enhanced Trust and Credibility",
+    "Increased Visibility in Search Results",
+    "Improved Conversion Rates",
+    "Reduce Risk of Fraud",
+    "Access to Premium Features",
+    "Competitive Advantage",
+    "Long-term Reputation Building"
   ];
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-      <div className="bg-white rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-hidden shadow-2xl flex flex-col border border-gray-200">
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-2 sm:p-4 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl sm:rounded-3xl w-full max-w-4xl max-h-[95vh] sm:max-h-[90vh] overflow-hidden shadow-2xl flex flex-col border border-gray-200">
         {/* Header */}
-        <div className="flex justify-between items-center p-6 border-b border-gray-200 bg-white flex-shrink-0">
-          <div className="flex items-center space-x-4">
-            <div className="w-12 h-12 bg-black rounded-2xl flex items-center justify-center shadow-lg">
-              <FaShieldAlt className="text-white text-xl" />
+        <div className="flex justify-between items-center p-4 sm:p-6 border-b border-gray-200 bg-white flex-shrink-0">
+          <div className="flex items-center space-x-2 sm:space-x-4">
+            <div className="w-8 h-8 sm:w-12 sm:h-12 bg-black rounded-xl sm:rounded-2xl flex items-center justify-center shadow">
+              <FaShieldAlt className="text-white text-sm sm:text-xl" />
             </div>
             <div>
-              <h2 className="text-2xl font-bold text-gray-900">Identity Verification</h2>
-              <p className="text-sm text-gray-600">Step {currentStep} of 7 • Complete your verification</p>
+              <h2 className="text-lg sm:text-2xl font-bold text-gray-900">Identity Verification</h2>
+              <p className="text-xs sm:text-sm text-gray-600">Step {currentStep} of 7</p>
             </div>
           </div>
           <button
             onClick={onClose}
             disabled={isProcessing}
-            className="p-3 hover:bg-gray-100 rounded-2xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="p-2 sm:p-3 hover:bg-gray-100 rounded-xl sm:rounded-2xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <FaTimes className="text-gray-500 hover:text-gray-700 text-lg" />
+            <FaTimes className="text-gray-500 hover:text-gray-700 text-sm sm:text-lg" />
           </button>
         </div>
 
         {/* Progress Bar */}
-        <div className="px-6 pt-4 flex-shrink-0">
-          <div className="w-full bg-gray-200 rounded-full h-2">
+        <div className="px-4 sm:px-6 pt-3 sm:pt-4 flex-shrink-0">
+          <div className="w-full bg-gray-200 rounded-full h-1.5 sm:h-2">
             <motion.div 
-              className="bg-black h-2 rounded-full shadow-sm"
+              className="bg-black h-1.5 sm:h-2 rounded-full"
               initial={{ width: 0 }}
               animate={{ width: `${(currentStep / 7) * 100}%` }}
               transition={{ duration: 0.5, ease: "easeOut" }}
@@ -532,22 +495,22 @@ export default function VerificationModal({ isOpen, onClose, user }) {
 
         {/* Error/Success Messages */}
         {(error || successMessage) && (
-          <div className="px-6 pt-4 flex-shrink-0">
-            <div className={`rounded-xl p-4 ${error ? 'bg-red-50 border border-red-200' : 'bg-green-50 border border-green-200'}`}>
-              <div className="flex items-center">
+          <div className="px-4 sm:px-6 pt-3 sm:pt-4 flex-shrink-0">
+            <div className={`rounded-xl p-3 sm:p-4 ${error ? 'bg-red-50 border border-red-200' : 'bg-green-50 border border-green-200'}`}>
+              <div className="flex items-center text-sm sm:text-base">
                 {error ? (
                   <>
-                    <div className="w-6 h-6 bg-red-100 rounded-full flex items-center justify-center mr-3">
-                      <span className="text-red-600 text-sm font-bold">!</span>
+                    <div className="w-5 h-5 sm:w-6 sm:h-6 bg-red-100 rounded-full flex items-center justify-center mr-2 sm:mr-3 flex-shrink-0">
+                      <span className="text-red-600 text-xs sm:text-sm font-bold">!</span>
                     </div>
-                    <p className="text-red-700 text-sm font-medium">{error}</p>
+                    <p className="text-red-700 text-xs sm:text-sm font-medium">{error}</p>
                   </>
                 ) : (
                   <>
-                    <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center mr-3">
-                      <FaCheck className="text-green-600 text-sm" />
+                    <div className="w-5 h-5 sm:w-6 sm:h-6 bg-green-100 rounded-full flex items-center justify-center mr-2 sm:mr-3 flex-shrink-0">
+                      <FaCheck className="text-green-600 text-xs sm:text-sm" />
                     </div>
-                    <p className="text-green-700 text-sm font-medium">{successMessage}</p>
+                    <p className="text-green-700 text-xs sm:text-sm font-medium">{successMessage}</p>
                   </>
                 )}
               </div>
@@ -556,7 +519,7 @@ export default function VerificationModal({ isOpen, onClose, user }) {
         )}
 
         {/* Content */}
-        <div className="flex-1 min-h-0 overflow-y-auto p-6">
+        <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6">
           <AnimatePresence mode="wait">
             {/* Step 1: Benefits Overview */}
             {currentStep === 1 && (
@@ -565,50 +528,48 @@ export default function VerificationModal({ isOpen, onClose, user }) {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
-                className="space-y-6"
+                className="space-y-4 sm:space-y-6"
               >
                 <div className="text-center">
-                  <h3 className="text-3xl font-bold text-gray-900 mb-4">
+                  <h3 className="text-xl sm:text-3xl font-bold text-gray-900 mb-2 sm:mb-4">
                     Verify Your Identity
                   </h3>
-                  <p className="text-gray-600 max-w-2xl mx-auto">
+                  <p className="text-sm sm:text-base text-gray-600 max-w-2xl mx-auto px-2">
                     Complete our secure verification process to unlock enhanced marketplace features and build trust with buyers
                   </p>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-3 sm:gap-4">
                   {benefits.map((benefit, index) => (
                     <motion.div 
                       key={index}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.1 }}
-                      className="bg-gradient-to-br from-white to-gray-50 rounded-2xl p-5 border border-gray-200 hover:border-yellow-400 transition-all duration-300"
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: index * 0.05 }}
+                      className="bg-white rounded-xl p-3 sm:p-4 border border-gray-200 hover:border-yellow-400 transition-all duration-300"
                     >
-                      <div className="flex items-start space-x-4">
-                        <div className="w-8 h-8 bg-yellow-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                          <FaCheck className="text-yellow-600 text-sm" />
+                      <div className="flex items-start space-x-2 sm:space-x-3">
+                        <div className="w-5 h-5 sm:w-6 sm:h-6 bg-yellow-100 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <FaCheck className="text-yellow-600 text-xs sm:text-sm" />
                         </div>
-                        <p className="text-gray-700 text-sm leading-relaxed">{benefit}</p>
+                        <p className="text-gray-700 text-xs sm:text-sm leading-relaxed">{benefit}</p>
                       </div>
                     </motion.div>
                   ))}
                 </div>
 
-                <div className="bg-gradient-to-r from-yellow-50 to-yellow-100 border border-yellow-200 rounded-2xl p-5 text-center">
-                  <p className="text-yellow-800 font-medium">
+                <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 sm:p-5 text-center">
+                  <p className="text-yellow-800 text-xs sm:text-sm font-medium">
                     Join thousands of trusted sellers who have enhanced their marketplace presence with verification
                   </p>
                 </div>
 
                 {/* Continue Button */}
-                <div className="flex justify-center pt-4">
-                  <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
+                <div className="flex justify-center pt-2 sm:pt-4">
+                  <button
                     onClick={handleNextStep}
                     disabled={isProcessing}
-                    className="px-12 py-4 bg-gradient-to-r from-yellow-50 to-yellow-100 border border-yellow-200 text-black rounded-2xl transition-all duration-300 font-semibold text-lg shadow-lg flex items-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-8 sm:px-12 py-3 sm:py-4 bg-yellow-500 hover:bg-yellow-600 text-black rounded-xl transition-all duration-300 font-semibold text-sm sm:text-base shadow-md flex items-center gap-2 sm:gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isProcessing ? (
                       <>
@@ -618,10 +579,10 @@ export default function VerificationModal({ isOpen, onClose, user }) {
                     ) : (
                       <>
                         <span>Begin Verification</span>
-                        <FaArrowRight className="text-lg" />
+                        <FaArrowRight className="text-sm sm:text-base" />
                       </>
                     )}
-                  </motion.button>
+                  </button>
                 </div>
               </motion.div>
             )}
@@ -633,18 +594,18 @@ export default function VerificationModal({ isOpen, onClose, user }) {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
-                className="space-y-6"
+                className="space-y-4 sm:space-y-6"
               >
                 <div className="text-center">
-                  <h3 className="text-3xl font-bold text-gray-900 mb-3">Personal Information</h3>
-                  <p className="text-gray-600">Provide your basic details for identity verification</p>
+                  <h3 className="text-xl sm:text-3xl font-bold text-gray-900 mb-2 sm:mb-3">Personal Information</h3>
+                  <p className="text-sm sm:text-base text-gray-600">Provide your basic details for identity verification</p>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      <span className="flex items-center gap-2">
-                        <FaUser className="text-yellow-500" />
+                    <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1 sm:mb-2">
+                      <span className="flex items-center gap-1 sm:gap-2">
+                        <FaUser className="text-yellow-500 text-xs sm:text-sm" />
                         Full Name *
                       </span>
                     </label>
@@ -652,16 +613,16 @@ export default function VerificationModal({ isOpen, onClose, user }) {
                       type="text"
                       value={formData.name}
                       onChange={(e) => handleInputChange('name', e.target.value)}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-yellow-500 focus:ring-2 focus:ring-yellow-100 transition-all"
+                      className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border border-gray-300 rounded-xl focus:outline-none focus:border-yellow-500 focus:ring-2 focus:ring-yellow-100 transition-all"
                       placeholder="Enter your full name"
                       required
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      <span className="flex items-center gap-2">
-                        <FaEnvelope className="text-yellow-500" />
+                    <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1 sm:mb-2">
+                      <span className="flex items-center gap-1 sm:gap-2">
+                        <FaEnvelope className="text-yellow-500 text-xs sm:text-sm" />
                         Email Address *
                       </span>
                     </label>
@@ -669,16 +630,16 @@ export default function VerificationModal({ isOpen, onClose, user }) {
                       type="email"
                       value={formData.email}
                       onChange={(e) => handleInputChange('email', e.target.value)}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-yellow-500 focus:ring-2 focus:ring-yellow-100 transition-all"
+                      className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border border-gray-300 rounded-xl focus:outline-none focus:border-yellow-500 focus:ring-2 focus:ring-yellow-100 transition-all"
                       placeholder="Enter your email"
                       required
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      <span className="flex items-center gap-2">
-                        <FaPhone className="text-yellow-500" />
+                    <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1 sm:mb-2">
+                      <span className="flex items-center gap-1 sm:gap-2">
+                        <FaPhone className="text-yellow-500 text-xs sm:text-sm" />
                         Phone Number *
                       </span>
                     </label>
@@ -686,23 +647,23 @@ export default function VerificationModal({ isOpen, onClose, user }) {
                       type="tel"
                       value={formData.phone}
                       onChange={(e) => handleInputChange('phone', e.target.value)}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-yellow-500 focus:ring-2 focus:ring-yellow-100 transition-all"
+                      className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border border-gray-300 rounded-xl focus:outline-none focus:border-yellow-500 focus:ring-2 focus:ring-yellow-100 transition-all"
                       placeholder="Enter your phone number"
                       required
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      <span className="flex items-center gap-2">
-                        <FaVenusMars className="text-yellow-500" />
+                    <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1 sm:mb-2">
+                      <span className="flex items-center gap-1 sm:gap-2">
+                        <FaVenusMars className="text-yellow-500 text-xs sm:text-sm" />
                         Gender *
                       </span>
                     </label>
                     <select
                       value={formData.gender}
                       onChange={(e) => handleInputChange('gender', e.target.value)}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-yellow-500 focus:ring-2 focus:ring-yellow-100 transition-all"
+                      className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border border-gray-300 rounded-xl focus:outline-none focus:border-yellow-500 focus:ring-2 focus:ring-yellow-100 transition-all"
                       required
                     >
                       <option value="">Select Gender</option>
@@ -713,16 +674,16 @@ export default function VerificationModal({ isOpen, onClose, user }) {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      <span className="flex items-center gap-2">
-                        <FaGlobe className="text-yellow-500" />
+                    <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1 sm:mb-2">
+                      <span className="flex items-center gap-1 sm:gap-2">
+                        <FaGlobe className="text-yellow-500 text-xs sm:text-sm" />
                         Nationality *
                       </span>
                     </label>
                     <select
                       value={formData.nationality}
                       onChange={(e) => handleInputChange('nationality', e.target.value)}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-yellow-500 focus:ring-2 focus:ring-yellow-100 transition-all"
+                      className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border border-gray-300 rounded-xl focus:outline-none focus:border-yellow-500 focus:ring-2 focus:ring-yellow-100 transition-all"
                       required
                     >
                       <option value="">Select Nationality</option>
@@ -733,10 +694,10 @@ export default function VerificationModal({ isOpen, onClose, user }) {
                     </select>
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      <span className="flex items-center gap-2">
-                        <FaMapMarkerAlt className="text-yellow-500" />
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1 sm:mb-2">
+                      <span className="flex items-center gap-1 sm:gap-2">
+                        <FaMapMarkerAlt className="text-yellow-500 text-xs sm:text-sm" />
                         Address *
                       </span>
                     </label>
@@ -744,15 +705,15 @@ export default function VerificationModal({ isOpen, onClose, user }) {
                       type="text"
                       value={formData.address}
                       onChange={(e) => handleInputChange('address', e.target.value)}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-yellow-500 focus:ring-2 focus:ring-yellow-100 transition-all"
+                      className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border border-gray-300 rounded-xl focus:outline-none focus:border-yellow-500 focus:ring-2 focus:ring-yellow-100 transition-all"
                       placeholder="Enter your residential address"
                       required
                     />
                   </div>
                 </div>
 
-                <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-4 mt-4">
-                  <p className="text-sm text-yellow-800">
+                <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 sm:p-4">
+                  <p className="text-xs sm:text-sm text-yellow-800">
                     <strong>Note:</strong> All information provided will be kept confidential and used solely for verification purposes.
                   </p>
                 </div>
@@ -766,28 +727,28 @@ export default function VerificationModal({ isOpen, onClose, user }) {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
-                className="space-y-6"
+                className="space-y-4 sm:space-y-6"
               >
                 <div className="text-center">
-                  <h3 className="text-3xl font-bold text-gray-900 mb-3">National ID Card</h3>
-                  <p className="text-gray-600">Upload a clear photo of your National ID Card</p>
+                  <h3 className="text-xl sm:text-3xl font-bold text-gray-900 mb-2 sm:mb-3">National ID Card</h3>
+                  <p className="text-sm sm:text-base text-gray-600">Upload a clear photo of your National ID Card</p>
                 </div>
 
-                <div className="bg-gray-50 border border-gray-200 rounded-2xl p-6">
-                  <div className="text-center mb-6">
-                    <div className="w-20 h-20 bg-yellow-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                      <FaIdCard className="text-yellow-500 text-3xl" />
+                <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 sm:p-6">
+                  <div className="text-center mb-4 sm:mb-6">
+                    <div className="w-16 h-16 sm:w-20 sm:h-20 bg-yellow-100 rounded-2xl flex items-center justify-center mx-auto mb-3 sm:mb-4">
+                      <FaIdCard className="text-yellow-500 text-2xl sm:text-3xl" />
                     </div>
-                    <h4 className="font-bold text-gray-900 text-xl mb-2">Upload National ID Card</h4>
-                    <p className="text-gray-600">
+                    <h4 className="font-bold text-gray-900 text-lg sm:text-xl mb-2">Upload National ID Card</h4>
+                    <p className="text-gray-600 text-xs sm:text-sm">
                       Take a clear photo of the front of your National ID Card
                     </p>
-                    <p className="text-gray-500 text-sm mt-2">
+                    <p className="text-gray-500 text-xs mt-1 sm:mt-2">
                       Ensure all details are visible and the photo is well-lit
                     </p>
                   </div>
 
-                  <div className="border-2 border-dashed border-gray-300 rounded-2xl p-8 bg-white hover:bg-gray-50 transition-all duration-300 cursor-pointer">
+                  <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 sm:p-8 bg-white hover:bg-gray-50 transition-all duration-300 cursor-pointer">
                     <input
                       type="file"
                       id="id-upload"
@@ -797,13 +758,13 @@ export default function VerificationModal({ isOpen, onClose, user }) {
                       ref={fileInputRef}
                     />
                     <label htmlFor="id-upload" className="cursor-pointer block">
-                      <div className="flex flex-col items-center space-y-4">
-                        <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center">
-                          <FaFileAlt className="text-gray-600 text-2xl" />
+                      <div className="flex flex-col items-center space-y-3 sm:space-y-4">
+                        <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gray-100 rounded-2xl flex items-center justify-center">
+                          <FaFileAlt className="text-gray-600 text-xl sm:text-2xl" />
                         </div>
                         <div className="text-center">
-                          <p className="font-bold text-gray-900 mb-2">Click to upload</p>
-                          <p className="text-gray-500 text-sm">PNG, JPG, JPEG up to 10MB</p>
+                          <p className="font-bold text-gray-900 text-sm sm:text-base mb-1">Click to upload</p>
+                          <p className="text-gray-500 text-xs sm:text-sm">PNG, JPG, JPEG up to 10MB</p>
                         </div>
                       </div>
                     </label>
@@ -813,26 +774,26 @@ export default function VerificationModal({ isOpen, onClose, user }) {
                     <motion.div
                       initial={{ opacity: 0, scale: 0.9 }}
                       animate={{ opacity: 1, scale: 1 }}
-                      className="bg-green-50 border border-green-200 rounded-2xl p-4 mt-6"
+                      className="bg-green-50 border border-green-200 rounded-xl p-3 sm:p-4 mt-4 sm:mt-6"
                     >
-                      <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center">
-                          <FaCheck className="text-green-600" />
+                      <div className="flex items-center space-x-2 sm:space-x-3">
+                        <div className="w-8 h-8 sm:w-10 sm:h-10 bg-green-100 rounded-xl flex items-center justify-center">
+                          <FaCheck className="text-green-600 text-xs sm:text-sm" />
                         </div>
-                        <div>
-                          <p className="font-semibold text-green-800">Document uploaded</p>
-                          <p className="text-green-600 text-sm">{formData.ninFile.name}</p>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-green-800 text-xs sm:text-sm">Document uploaded</p>
+                          <p className="text-green-600 text-xs truncate">{formData.ninFile.name}</p>
                         </div>
                       </div>
                     </motion.div>
                   )}
 
-                  <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-4 mt-6">
-                    <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 sm:p-4 mt-4 sm:mt-6">
+                    <h4 className="font-semibold text-gray-900 mb-1 sm:mb-2 flex items-center gap-1 sm:gap-2 text-sm sm:text-base">
                       <FaCamera className="text-yellow-500" />
                       <span>Next: Face Verification</span>
                     </h4>
-                    <p className="text-gray-700 text-sm">
+                    <p className="text-gray-700 text-xs sm:text-sm">
                       After uploading your ID, we'll verify your face matches the photo on the ID
                     </p>
                   </div>
@@ -847,115 +808,111 @@ export default function VerificationModal({ isOpen, onClose, user }) {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
-                className="space-y-6"
+                className="space-y-4 sm:space-y-6"
               >
-                <div className="text-center px-4">
-                  <h3 className="text-2xl md:text-3xl font-bold text-gray-900 mb-3">Face Verification</h3>
-                  <p className="text-gray-600 text-sm md:text-base">Verify that you match your ID document</p>
+                <div className="text-center">
+                  <h3 className="text-xl sm:text-3xl font-bold text-gray-900 mb-2 sm:mb-3">Face Verification</h3>
+                  <p className="text-sm sm:text-base text-gray-600">Verify that you match your ID document</p>
                 </div>
 
-                <div className="bg-gray-50 rounded-2xl p-4 md:p-6 border border-gray-200 mx-2 md:mx-0">
+                <div className="bg-gray-50 rounded-xl p-4 sm:p-6 border border-gray-200">
                   {!formData.isCameraActive && !formData.capturedImage ? (
-                    <div className="text-center space-y-4 md:space-y-6">
-                      <div className="w-40 h-40 md:w-48 md:h-48 mx-auto">
-                        <div className="w-full h-full border-4 border-dashed border-yellow-500 rounded-full flex items-center justify-center bg-white shadow-lg">
-                          <FaCamera className="text-gray-400 text-4xl md:text-5xl" />
+                    <div className="text-center space-y-4 sm:space-y-6">
+                      <div className="w-32 h-32 sm:w-40 sm:h-40 mx-auto">
+                        <div className="w-full h-full border-4 border-dashed border-yellow-500 rounded-full flex items-center justify-center bg-white shadow">
+                          <FaCamera className="text-gray-400 text-3xl sm:text-4xl" />
                         </div>
                       </div>
-                      <p className="text-gray-600 text-sm md:text-base">Ready to capture your photo</p>
-                      <motion.button
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
+                      <p className="text-gray-600 text-sm sm:text-base">Ready to capture your photo</p>
+                      <button
                         onClick={startCamera}
                         disabled={isProcessing}
-                        className="px-6 py-3 md:px-8 md:py-4 bg-gradient-to-r from-yellow-50 to-yellow-100 border border-yellow-200 text-black rounded-2xl transition-all duration-300 font-semibold text-base md:text-lg shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-6 sm:px-8 py-3 sm:py-4 bg-yellow-500 hover:bg-yellow-600 text-black rounded-xl transition-all duration-300 font-semibold text-sm sm:text-base shadow disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <FaCamera className="inline mr-2" />
                         Start Camera
-                      </motion.button>
+                      </button>
                     </div>
                   ) : formData.isCameraActive ? (
-                    <div className="text-center space-y-4 md:space-y-6">
+                    <div className="text-center space-y-4 sm:space-y-6">
                       <div className="flex flex-col items-center justify-center">
-                        <div className="relative w-48 h-48 md:w-56 md:h-56">
+                        <div className="relative w-48 h-48 sm:w-56 sm:h-56">
                           <video
                             ref={videoRef}
                             autoPlay
                             muted
                             playsInline
-                            className="w-full h-full object-cover rounded-full border-4 border-yellow-500 bg-black shadow-lg"
+                            className="w-full h-full object-cover rounded-full border-4 border-yellow-500 bg-black shadow"
                             style={{ transform: 'scaleX(-1)' }}
                           />
                           {!formData.isCameraReady && (
                             <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center">
                               <div className="text-white text-center">
-                                <div className="animate-spin rounded-full h-8 w-8 md:h-12 md:w-12 border-b-2 border-white mx-auto mb-2 md:mb-3"></div>
-                                <p className="text-sm md:text-base">Initializing camera...</p>
+                                <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-white mx-auto mb-2"></div>
+                                <p className="text-xs sm:text-sm">Initializing...</p>
                               </div>
                             </div>
                           )}
                         </div>
                       </div>
                       
-                      <div className="flex flex-col sm:flex-row justify-center gap-3 md:gap-4">
-                        <motion.button
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
+                      <div className="flex flex-col sm:flex-row justify-center gap-3">
+                        <button
                           onClick={captureImage}
                           disabled={!formData.isCameraReady || isProcessing}
-                          className={`px-6 py-3 md:px-8 md:py-4 rounded-2xl font-semibold text-base md:text-lg shadow-lg transition-all duration-300 ${
+                          className={`px-6 sm:px-8 py-3 sm:py-4 rounded-xl font-semibold text-sm sm:text-base shadow transition-all duration-300 ${
                             formData.isCameraReady 
-                              ? 'bg-green-500 text-white hover:bg-green-600' 
+                              ? 'bg-green-500 hover:bg-green-600 text-white' 
                               : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                           }`}
                         >
                           <FaCamera className="inline mr-2" />
                           Capture Photo
-                        </motion.button>
+                        </button>
                         <button
                           onClick={stopCamera}
                           disabled={isProcessing}
-                          className="px-6 py-3 md:px-8 md:py-4 bg-gray-500 text-white rounded-2xl hover:bg-gray-600 transition-all duration-300 font-semibold text-base md:text-lg disabled:opacity-50"
+                          className="px-6 sm:px-8 py-3 sm:py-4 bg-gray-500 hover:bg-gray-600 text-white rounded-xl transition-all duration-300 font-semibold text-sm sm:text-base disabled:opacity-50"
                         >
                           Cancel
                         </button>
                       </div>
                     </div>
                   ) : formData.capturedImage ? (
-                    <div className="flex flex-col items-center space-y-4 md:space-y-6">
-                      <div className="relative w-48 h-48 md:w-56 md:h-56">
+                    <div className="flex flex-col items-center space-y-4 sm:space-y-6">
+                      <div className="relative w-48 h-48 sm:w-56 sm:h-56">
                         <img
                           src={formData.capturedImage}
                           alt="Captured face"
-                          className="w-full h-full object-cover rounded-full border-4 border-green-500 shadow-lg"
+                          className="w-full h-full object-cover rounded-full border-4 border-green-500 shadow"
                         />
                       </div>
                       
                       <motion.div
                         initial={{ opacity: 0, scale: 0.9 }}
                         animate={{ opacity: 1, scale: 1 }}
-                        className="bg-green-50 border border-green-200 rounded-2xl p-4 max-w-md w-full"
+                        className="bg-green-50 border border-green-200 rounded-xl p-3 sm:p-4 max-w-md w-full"
                       >
-                        <div className="flex items-center justify-center gap-3">
-                          <div className="w-8 h-8 md:w-10 md:h-10 bg-green-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                            <FaCheck className="text-green-600 text-lg md:text-xl" />
+                        <div className="flex items-center justify-center gap-2 sm:gap-3">
+                          <div className="w-6 h-6 sm:w-8 sm:h-8 bg-green-100 rounded-xl flex items-center justify-center">
+                            <FaCheck className="text-green-600 text-sm sm:text-base" />
                           </div>
-                          <span className="font-semibold text-green-800 text-sm md:text-base">Face captured successfully!</span>
+                          <span className="font-semibold text-green-800 text-xs sm:text-sm">Face captured successfully!</span>
                         </div>
                       </motion.div>
 
-                      <div className="flex flex-col sm:flex-row justify-center gap-3 md:gap-4 w-full max-w-xs">
+                      <div className="flex flex-col sm:flex-row justify-center gap-3 w-full max-w-xs">
                         <button
                           onClick={retakePhoto}
                           disabled={isProcessing}
-                          className="px-6 py-3 md:px-8 md:py-4 bg-gray-500 text-white rounded-2xl hover:bg-gray-600 transition-all duration-300 font-semibold text-base md:text-lg disabled:opacity-50"
+                          className="px-6 sm:px-8 py-3 sm:py-4 bg-gray-500 hover:bg-gray-600 text-white rounded-xl transition-all duration-300 font-semibold text-sm sm:text-base disabled:opacity-50"
                         >
                           Retake Photo
                         </button>
                         <button
                           onClick={handleNextStep}
                           disabled={isProcessing}
-                          className="px-6 py-3 md:px-8 md:py-4 bg-green-500 text-white rounded-2xl hover:bg-green-600 transition-all duration-300 font-semibold text-base md:text-lg shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="px-6 sm:px-8 py-3 sm:py-4 bg-green-500 hover:bg-green-600 text-white rounded-xl transition-all duration-300 font-semibold text-sm sm:text-base shadow disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           {isProcessing ? (
                             <>
@@ -980,51 +937,51 @@ export default function VerificationModal({ isOpen, onClose, user }) {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
-                className="space-y-6"
+                className="space-y-4 sm:space-y-6"
               >
                 <div className="text-center">
-                  <h3 className="text-3xl font-bold text-gray-900 mb-3">Select Verification Plan</h3>
-                  <p className="text-gray-600">Choose the plan that best suits your needs</p>
+                  <h3 className="text-xl sm:text-3xl font-bold text-gray-900 mb-2 sm:mb-3">Select Verification Plan</h3>
+                  <p className="text-sm sm:text-base text-gray-600">Choose the plan that best suits your needs</p>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 gap-4 sm:gap-6">
                   {/* Monthly Plan */}
                   <motion.div
                     whileHover={{ scale: 1.02 }}
-                    className={`relative rounded-2xl p-6 border-2 transition-all duration-300 cursor-pointer ${
+                    className={`relative rounded-xl p-4 sm:p-6 border-2 transition-all duration-300 cursor-pointer ${
                       selectedPlan === 'monthly' 
-                        ? 'border-yellow-500 bg-yellow-50 shadow-lg' 
+                        ? 'border-yellow-500 bg-yellow-50 shadow' 
                         : 'border-gray-300 bg-white hover:border-yellow-400'
                     }`}
                     onClick={() => handlePlanSelect('monthly')}
                   >
                     {selectedPlan === 'monthly' && (
-                      <div className="absolute -top-3 -right-3">
-                        <div className="bg-black text-white px-3 py-1 rounded-full text-xs font-semibold shadow">
-                          <IoMdCheckmarkCircleOutline />  
+                      <div className="absolute -top-2 -right-2">
+                        <div className="bg-black text-white px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-xs font-semibold shadow">
+                          <IoMdCheckmarkCircleOutline className="text-sm sm:text-base" />
                         </div>
                       </div>
                     )}
                     <div className="text-center">
-                      <div className="w-14 h-14 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                        <FaStar className="text-gray-600 text-xl" />
+                      <div className="w-10 h-10 sm:w-14 sm:h-14 bg-gray-100 rounded-xl flex items-center justify-center mx-auto mb-3 sm:mb-4">
+                        <FaStar className="text-gray-600 text-lg sm:text-xl" />
                       </div>
-                      <h4 className="font-bold text-xl mb-2">Monthly</h4>
-                      <div className="mb-4">
-                        <span className="text-3xl font-bold text-gray-900">₦2,500</span>
-                        <span className="text-gray-600">/month</span>
+                      <h4 className="font-bold text-lg sm:text-xl mb-1 sm:mb-2">Monthly</h4>
+                      <div className="mb-3 sm:mb-4">
+                        <span className="text-2xl sm:text-3xl font-bold text-gray-900">₦2,500</span>
+                        <span className="text-gray-600 text-sm">/month</span>
                       </div>
-                      <div className="space-y-2 text-sm text-gray-600 mb-6">
+                      <div className="space-y-1.5 sm:space-y-2 text-xs sm:text-sm text-gray-600 mb-4 sm:mb-6">
                         <div className="flex items-center gap-2">
-                          <FaCheck className="text-green-500" />
+                          <FaCheck className="text-green-500 text-xs sm:text-sm" />
                           <span>Basic verification badge</span>
                         </div>
                         <div className="flex items-center gap-2">
-                          <FaCheck className="text-green-500" />
+                          <FaCheck className="text-green-500 text-xs sm:text-sm" />
                           <span>Standard visibility</span>
                         </div>
                         <div className="flex items-center gap-2">
-                          <FaCheck className="text-green-500" />
+                          <FaCheck className="text-green-500 text-xs sm:text-sm" />
                           <span>Email support</span>
                         </div>
                       </div>
@@ -1034,52 +991,52 @@ export default function VerificationModal({ isOpen, onClose, user }) {
                   {/* Yearly Plan */}
                   <motion.div
                     whileHover={{ scale: 1.02 }}
-                    className={`relative rounded-2xl p-6 border-2 transition-all duration-300 cursor-pointer ${
+                    className={`relative rounded-xl p-4 sm:p-6 border-2 transition-all duration-300 cursor-pointer ${
                       selectedPlan === 'yearly' 
-                        ? 'border-yellow-500 bg-yellow-50 shadow-lg' 
+                        ? 'border-yellow-500 bg-yellow-50 shadow' 
                         : 'border-yellow-400 bg-white hover:border-yellow-500'
                     }`}
                     onClick={() => handlePlanSelect('yearly')}
                   >
-                    <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                      <div className="bg-yellow-500 text-white px-4 py-1 rounded-full text-xs font-semibold shadow">
+                    <div className="absolute -top-2 left-1/2 transform -translate-x-1/2">
+                      <div className="bg-yellow-500 text-white px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-xs font-semibold shadow whitespace-nowrap">
                         RECOMMENDED
                       </div>
                     </div>
                     {selectedPlan === 'yearly' && (
-                      <div className="absolute -top-3 -right-3">
-                        <div className="bg-black text-white px-3 py-1 rounded-full text-xs font-semibold shadow">
-                          <IoMdCheckmarkCircleOutline />  
+                      <div className="absolute -top-2 -right-2">
+                        <div className="bg-black text-white px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-xs font-semibold shadow">
+                          <IoMdCheckmarkCircleOutline className="text-sm sm:text-base" />
                         </div>
                       </div>
                     )}
-                    <div className="text-center">
-                      <div className="w-14 h-14 bg-yellow-200 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                        <FaCrown className="text-white text-xl" />
+                    <div className="text-center mt-4 sm:mt-6">
+                      <div className="w-10 h-10 sm:w-14 sm:h-14 bg-yellow-200 rounded-xl flex items-center justify-center mx-auto mb-3 sm:mb-4">
+                        <FaCrown className="text-white text-lg sm:text-xl" />
                       </div>
-                      <h4 className="font-bold text-xl mb-2">Annual</h4>
-                      <div className="mb-4">
-                        <span className="text-3xl font-bold text-gray-900">₦20,000</span>
-                        <span className="text-gray-600">/year</span>
+                      <h4 className="font-bold text-lg sm:text-xl mb-1 sm:mb-2">Annual</h4>
+                      <div className="mb-3 sm:mb-4">
+                        <span className="text-2xl sm:text-3xl font-bold text-gray-900">₦20,000</span>
+                        <span className="text-gray-600 text-sm">/year</span>
                       </div>
-                      <div className="bg-green-100 text-green-700 text-xs font-semibold py-2 rounded-xl mb-4">
+                      <div className="bg-green-100 text-green-700 text-xs font-semibold py-1.5 sm:py-2 rounded-lg mb-3 sm:mb-4">
                         Save ₦10,000 annually
                       </div>
-                      <div className="space-y-2 text-sm text-gray-600 mb-6">
+                      <div className="space-y-1.5 sm:space-y-2 text-xs sm:text-sm text-gray-600">
                         <div className="flex items-center gap-2">
-                          <FaCheck className="text-green-500" />
+                          <FaCheck className="text-green-500 text-xs sm:text-sm" />
                           <span>Premium verification badge</span>
                         </div>
                         <div className="flex items-center gap-2">
-                          <FaCheck className="text-green-500" />
+                          <FaCheck className="text-green-500 text-xs sm:text-sm" />
                           <span>Enhanced visibility</span>
                         </div>
                         <div className="flex items-center gap-2">
-                          <FaCheck className="text-green-500" />
+                          <FaCheck className="text-green-500 text-xs sm:text-sm" />
                           <span>Priority support</span>
                         </div>
                         <div className="flex items-center gap-2">
-                          <FaCheck className="text-green-500" />
+                          <FaCheck className="text-green-500 text-xs sm:text-sm" />
                           <span>Featured placement</span>
                         </div>
                       </div>
@@ -1096,54 +1053,54 @@ export default function VerificationModal({ isOpen, onClose, user }) {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
-                className="space-y-6"
+                className="space-y-4 sm:space-y-6"
               >
-                <div className="text-center px-4">
-                  <h3 className="text-2xl md:text-3xl font-bold text-gray-900 mb-3">Payment Link Generated</h3>
-                  <p className="text-gray-600 text-sm md:text-base">Your secure payment link is ready</p>
+                <div className="text-center">
+                  <h3 className="text-xl sm:text-3xl font-bold text-gray-900 mb-2 sm:mb-3">Payment Link Generated</h3>
+                  <p className="text-sm sm:text-base text-gray-600">Your secure payment link is ready</p>
                 </div>
 
-                <div className="bg-gradient-to-br from-yellow-50 to-white border border-yellow-200 rounded-2xl p-4 md:p-6 mx-2 md:mx-0">
-                  <div className="text-center mb-4 md:mb-6">
-                    <div className="w-16 h-16 md:w-20 md:h-20 bg-yellow-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                      <FaCreditCard className="text-yellow-500 text-2xl md:text-3xl" />
+                <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 sm:p-6">
+                  <div className="text-center">
+                    <div className="w-12 h-12 sm:w-16 sm:h-16 bg-yellow-100 rounded-xl flex items-center justify-center mx-auto mb-3 sm:mb-4">
+                      <FaCreditCard className="text-yellow-500 text-xl sm:text-2xl" />
                     </div>
                     
-                    <div className="mb-4 md:mb-6">
-                      <div className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">
+                    <div className="mb-4 sm:mb-6">
+                      <div className="text-2xl sm:text-4xl font-bold text-gray-900 mb-1 sm:mb-2">
                         ₦{selectedPlan === 'monthly' ? '2,500' : '20,000'}
                       </div>
-                      <div className="text-gray-600 text-sm md:text-base">
+                      <div className="text-gray-600 text-sm sm:text-base">
                         {selectedPlan === 'monthly' ? 'Monthly Verification Plan' : 'Annual Verification Plan'}
                       </div>
                       {selectedPlan === 'yearly' && (
-                        <div className="text-green-600 text-xs md:text-sm font-semibold mt-2">
+                        <div className="text-green-600 text-xs sm:text-sm font-semibold mt-1 sm:mt-2">
                           Save ₦10,000 with annual plan!
                         </div>
                       )}
                     </div>
 
-                    <div className="bg-white border border-gray-200 rounded-xl p-3 md:p-4 mb-4">
-                      <div className="space-y-2 md:space-y-3">
-                        <div className="flex justify-between items-center">
-                          <span className="text-gray-600 text-sm md:text-base">Email:</span>
-                          <span className="font-semibold text-sm md:text-base truncate ml-2">{formData.email}</span>
+                    <div className="bg-white border border-gray-200 rounded-lg p-3 sm:p-4 mb-4">
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-center text-xs sm:text-sm">
+                          <span className="text-gray-600">Email:</span>
+                          <span className="font-semibold truncate ml-2">{formData.email}</span>
                         </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-gray-600 text-sm md:text-base">Name:</span>
-                          <span className="font-semibold text-sm md:text-base truncate ml-2">{formData.name}</span>
+                        <div className="flex justify-between items-center text-xs sm:text-sm">
+                          <span className="text-gray-600">Name:</span>
+                          <span className="font-semibold truncate ml-2">{formData.name}</span>
                         </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-gray-600 text-sm md:text-base">Plan:</span>
-                          <span className="font-semibold text-sm md:text-base capitalize">{selectedPlan}</span>
+                        <div className="flex justify-between items-center text-xs sm:text-sm">
+                          <span className="text-gray-600">Plan:</span>
+                          <span className="font-semibold capitalize">{selectedPlan}</span>
                         </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="text-center text-xs md:text-sm text-gray-500 px-2">
-                    <p>Click "Continue to Payment" to proceed to Paystack for secure payment</p>
-                    <p className="text-xs mt-1">Your payment information is encrypted and secure</p>
+                    <div className="text-center text-xs text-gray-500">
+                      <p>Click "Continue to Payment" to proceed to Paystack for secure payment</p>
+                      <p className="text-xs mt-1">Your payment information is encrypted and secure</p>
+                    </div>
                   </div>
                 </div>
               </motion.div>
@@ -1156,52 +1113,50 @@ export default function VerificationModal({ isOpen, onClose, user }) {
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.9 }}
-                className="text-center space-y-6"
+                className="text-center space-y-4 sm:space-y-6"
               >
                 <motion.div
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
                   transition={{ type: "spring", stiffness: 200, damping: 15 }}
-                  className="w-28 h-28 bg-black rounded-3xl flex items-center justify-center mx-auto shadow-2xl"
+                  className="w-20 h-20 sm:w-24 sm:h-24 bg-black rounded-2xl flex items-center justify-center mx-auto shadow"
                 >
-                  <FaCreditCard className="text-white text-5xl" />
+                  <FaCreditCard className="text-white text-3xl sm:text-4xl" />
                 </motion.div>
                 
-                <div className="space-y-4">
-                  <h3 className="text-3xl font-bold text-gray-900">
+                <div className="space-y-3 sm:space-y-4">
+                  <h3 className="text-xl sm:text-3xl font-bold text-gray-900">
                     Complete Payment
                   </h3>
                   
-                  <p className="text-gray-600 max-w-md mx-auto">
+                  <p className="text-gray-600 text-sm sm:text-base max-w-md mx-auto px-2">
                     Click the button below to complete your payment securely through Paystack
                   </p>
 
-                  <div className="bg-gradient-to-br from-yellow-50 to-white border border-yellow-200 rounded-2xl p-6 max-w-md mx-auto">
-                    <div className="text-center mb-6">
-                      <div className="text-4xl font-bold text-gray-900 mb-2">
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 sm:p-6 max-w-md mx-auto">
+                    <div className="text-center mb-4 sm:mb-6">
+                      <div className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">
                         ₦{selectedPlan === 'monthly' ? '2,500' : '20,000'}
                       </div>
-                      <div className="text-gray-600">
+                      <div className="text-gray-600 text-sm">
                         {selectedPlan === 'monthly' ? 'Monthly Plan' : 'Annual Plan'}
                       </div>
                     </div>
 
-                    <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
+                    <button
                       onClick={handlePaystackPayment}
-                      className="w-full py-4 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl hover:from-green-600 hover:to-green-700 transition-all duration-300 font-semibold text-lg shadow-lg"
+                      className="w-full py-3 sm:py-4 bg-green-500 hover:bg-green-600 text-white rounded-xl transition-all duration-300 font-semibold text-sm sm:text-base shadow"
                     >
                       Pay with Paystack
-                    </motion.button>
+                    </button>
 
-                    <p className="text-sm text-gray-500 mt-4">
+                    <p className="text-xs text-gray-500 mt-3 sm:mt-4">
                       Secure payment powered by Paystack
                     </p>
                   </div>
 
-                  <div className="bg-gradient-to-r from-yellow-50 to-yellow-100 rounded-2xl p-5 border border-yellow-200 max-w-md mx-auto">
-                    <p className="text-yellow-800 text-sm">
+                  <div className="bg-yellow-50 rounded-xl p-3 sm:p-4 border border-yellow-200 max-w-md mx-auto">
+                    <p className="text-yellow-800 text-xs sm:text-sm">
                       After payment, your verification will be processed within 1-2 business days
                     </p>
                   </div>
@@ -1213,48 +1168,42 @@ export default function VerificationModal({ isOpen, onClose, user }) {
 
         {/* Footer Navigation */}
         {currentStep !== 1 && currentStep !== 7 && (
-          <div className="flex justify-between items-center p-6 border-t border-gray-200 bg-white flex-shrink-0">
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
+          <div className="flex justify-between items-center p-4 sm:p-6 border-t border-gray-200 bg-white flex-shrink-0">
+            <button
               onClick={prevStep}
               disabled={isProcessing || currentStep === 2}
-              className="flex items-center gap-2 px-6 py-3 rounded-2xl border border-gray-300 text-gray-700 hover:bg-gray-50 transition-all duration-300 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center gap-1 sm:gap-2 px-4 sm:px-6 py-2 sm:py-3 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50 transition-all duration-300 font-semibold text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <FaArrowLeft />
+              <FaArrowLeft className="text-xs sm:text-sm" />
               Back
-            </motion.button>
+            </button>
 
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
+            <button
               onClick={handleNextStep}
               disabled={isProcessing || (currentStep === 5 && !selectedPlan)}
-              className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-gradient-to-r from-yellow-50 to-yellow-100 border border-yellow-200 text-black hover:from-yellow-600 hover:to-black/90 transition-all duration-300 font-semibold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center gap-1 sm:gap-2 px-4 sm:px-6 py-2 sm:py-3 rounded-xl bg-yellow-500 hover:bg-yellow-600 text-black transition-all duration-300 font-semibold text-sm sm:text-base shadow disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <span>
                 {isProcessing ? (
                   <>
-                    <FaSpinner className="animate-spin inline mr-2" />
+                    <FaSpinner className="animate-spin inline mr-1 sm:mr-2" />
                     Processing...
                   </>
                 ) : currentStep === 6 ? 'Continue to Payment' : 'Continue'}
               </span>
-              {!isProcessing && <FaArrowRight />}
-            </motion.button>
+              {!isProcessing && <FaArrowRight className="text-xs sm:text-sm" />}
+            </button>
           </div>
         )}
 
         {currentStep === 7 && (
-          <div className="flex justify-center p-6 border-t border-gray-200 bg-white flex-shrink-0">
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
+          <div className="flex justify-center p-4 sm:p-6 border-t border-gray-200 bg-white flex-shrink-0">
+            <button
               onClick={onClose}
-              className="px-8 py-4 bg-black text-white rounded-2xl hover:from-yellow-600 hover:to-black/90 transition-all duration-300 font-semibold text-lg shadow-lg"
+              className="px-6 sm:px-8 py-2.5 sm:py-4 bg-black hover:bg-gray-900 text-white rounded-xl transition-all duration-300 font-semibold text-sm sm:text-base shadow"
             >
               Return to Dashboard
-            </motion.button>
+            </button>
           </div>
         )}
       </div>
