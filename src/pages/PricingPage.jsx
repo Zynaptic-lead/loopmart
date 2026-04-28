@@ -1,4 +1,4 @@
-// src/pages/PricingPage.jsx - CORRECTED WITH ANNUALLY INTERVAL
+// src/pages/PricingPage.jsx - FULLY RESPONSIVE VERSION
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -9,7 +9,8 @@ import {
   FaMoneyBillWave, FaHandshake, FaChartLine,
   FaTimesCircle, FaBuilding, FaEye, FaMedal,
   FaLock, FaTrophy, FaArrowRight, FaPercent,
-  FaBolt, FaArrowLeft, FaSpinner, FaTimes
+  FaBolt, FaArrowLeft, FaSpinner, FaTimes,
+  FaBars, FaTimes as FaClose
 } from 'react-icons/fa';
 import { MdAttachMoney, MdTrendingUp } from 'react-icons/md';
 import { IoIosBusiness } from 'react-icons/io';
@@ -25,7 +26,7 @@ const vendorPlans = [
     name: 'Monthly Plan',
     price: '₦1,000',
     period: 'month',
-    interval: 'monthly',  // ✅ Backend expects 'monthly'
+    interval: 'monthly',
     description: 'Flexible monthly subscription for growing businesses',
     features: [
       { text: 'Dedicated online shop on LoopMart', icon: IoIosBusiness },
@@ -45,7 +46,7 @@ const vendorPlans = [
     name: 'Yearly Plan',
     price: '₦10,000',
     period: 'year',
-    interval: 'annually',  // ✅ Backend expects 'annually' (NOT 'yearly')
+    interval: 'annually',
     description: 'Annual plan with maximum savings & benefits',
     features: [
       { text: 'All Monthly Plan features', icon: FaCheck },
@@ -130,41 +131,41 @@ const PaymentModal = ({ isOpen, onClose, plan, onConfirm, processing }) => {
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl"
+        className="bg-white rounded-2xl p-4 sm:p-6 md:p-8 max-w-md w-full mx-4 shadow-2xl"
       >
-        <div className="flex justify-between items-center mb-6">
-          <h3 className="text-2xl font-bold text-black">Confirm Subscription</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-            <FaTimes size={24} />
+        <div className="flex justify-between items-center mb-4 sm:mb-6">
+          <h3 className="text-xl sm:text-2xl font-bold text-black">Confirm Subscription</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-2">
+            <FaTimes size={20} className="sm:text-2xl" />
           </button>
         </div>
 
         <div className="mb-6">
-          <div className={`p-4 rounded-lg ${plan?.popular ? 'bg-yellow-50' : 'bg-gray-50'} mb-4`}>
-            <div className="flex items-center gap-3 mb-2">
-              {plan?.popular ? <FaCrown className="text-yellow-600" /> : <FaStore className="text-black" />}
-              <h4 className="text-xl font-bold">{plan?.name}</h4>
+          <div className={`p-3 sm:p-4 rounded-lg ${plan?.popular ? 'bg-yellow-50' : 'bg-gray-50'} mb-4`}>
+            <div className="flex items-center gap-2 sm:gap-3 mb-2">
+              {plan?.popular ? <FaCrown className="text-yellow-600 text-lg sm:text-xl" /> : <FaStore className="text-black text-lg sm:text-xl" />}
+              <h4 className="text-lg sm:text-xl font-bold">{plan?.name}</h4>
             </div>
             <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-bold text-black">{plan?.price}</span>
-              <span className="text-gray-500">/{plan?.period}</span>
+              <span className="text-2xl sm:text-3xl font-bold text-black">{plan?.price}</span>
+              <span className="text-sm sm:text-base text-gray-500">/{plan?.period}</span>
             </div>
           </div>
 
-          <div className="space-y-3">
-            <h5 className="font-semibold text-gray-700">You'll get:</h5>
+          <div className="space-y-2 sm:space-y-3">
+            <h5 className="font-semibold text-gray-700 text-sm sm:text-base">You'll get:</h5>
             {plan?.features.slice(0, 3).map((feature, idx) => (
               <div key={idx} className="flex items-start gap-2">
-                <FaCheck className="text-green-500 mt-1 flex-shrink-0" />
-                <span className="text-gray-600">{feature.text}</span>
+                <FaCheck className="text-green-500 mt-1 flex-shrink-0 text-sm sm:text-base" />
+                <span className="text-gray-600 text-sm sm:text-base">{feature.text}</span>
               </div>
             ))}
-            <p className="text-sm text-gray-500 mt-2">...and {plan?.features.length - 3} more features</p>
+            <p className="text-xs sm:text-sm text-gray-500 mt-2">...and {plan?.features.length - 3} more features</p>
           </div>
         </div>
 
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-          <p className="text-sm text-blue-800">
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4 mb-6">
+          <p className="text-xs sm:text-sm text-blue-800">
             <strong>Note:</strong> You'll be redirected to Paystack to complete your payment securely.
           </p>
         </div>
@@ -173,7 +174,7 @@ const PaymentModal = ({ isOpen, onClose, plan, onConfirm, processing }) => {
           <button
             onClick={onConfirm}
             disabled={processing}
-            className={`w-full py-3 px-6 rounded-lg font-semibold text-lg transition-all duration-300 ${
+            className={`w-full py-2.5 sm:py-3 px-4 sm:px-6 rounded-lg font-semibold text-base sm:text-lg transition-all duration-300 ${
               plan?.popular
                 ? 'bg-yellow-500 text-black hover:bg-yellow-600'
                 : 'bg-black text-white hover:bg-gray-900'
@@ -191,7 +192,7 @@ const PaymentModal = ({ isOpen, onClose, plan, onConfirm, processing }) => {
           <button
             onClick={onClose}
             disabled={processing}
-            className="w-full py-3 border-2 border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 transition disabled:opacity-50"
+            className="w-full py-2.5 sm:py-3 border-2 border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 transition disabled:opacity-50 text-sm sm:text-base"
           >
             Cancel
           </button>
@@ -209,29 +210,29 @@ const LoginPromptModal = ({ isOpen, onClose, onLogin, onSignup }) => {
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl"
+        className="bg-white rounded-2xl p-4 sm:p-6 md:p-8 max-w-md w-full mx-4 shadow-2xl"
       >
         <div className="flex justify-between items-center mb-4">
-          <h3 className="text-2xl font-bold text-black">Login Required</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-            <FaTimes size={24} />
+          <h3 className="text-xl sm:text-2xl font-bold text-black">Login Required</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-2">
+            <FaTimes size={20} className="sm:text-2xl" />
           </button>
         </div>
         
-        <p className="text-gray-600 mb-6">
+        <p className="text-gray-600 mb-6 text-sm sm:text-base">
           You need to be logged in to subscribe to a plan. Please login or create an account to continue.
         </p>
         
         <div className="flex flex-col gap-3">
           <button
             onClick={onLogin}
-            className="w-full py-3 bg-yellow-500 text-black font-bold rounded-lg hover:bg-yellow-600 transition"
+            className="w-full py-2.5 sm:py-3 bg-yellow-500 text-black font-bold rounded-lg hover:bg-yellow-600 transition text-sm sm:text-base"
           >
             Login to Your Account
           </button>
           <button
             onClick={onSignup}
-            className="w-full py-3 border-2 border-black text-black font-bold rounded-lg hover:bg-gray-50 transition"
+            className="w-full py-2.5 sm:py-3 border-2 border-black text-black font-bold rounded-lg hover:bg-gray-50 transition text-sm sm:text-base"
           >
             Create New Account
           </button>
@@ -254,18 +255,17 @@ export default function PricingPage() {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [verifyingPayment, setVerifyingPayment] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
   const toast = useToast();
   const [searchParams] = useSearchParams();
   
   const { hasSubscription, setSubscription, checkSubscription } = useSubscription();
 
-  // Check subscription status on page load
   useEffect(() => {
     checkSubscription();
   }, [checkSubscription]);
 
-  // Check for payment verification on return from Paystack
   useEffect(() => {
     const reference = searchParams.get('reference');
     const trxref = searchParams.get('trxref');
@@ -306,7 +306,6 @@ export default function PricingPage() {
         toast?.success('Payment successful! Your subscription is now active.');
         const expiryDate = new Date(data.data.expires_at);
         setSubscription(true, expiryDate);
-        // Redirect to start selling after successful payment
         window.location.href = '/start-selling';
       } else {
         toast?.info('Payment completed. Activating your subscription...');
@@ -360,6 +359,7 @@ export default function PricingPage() {
     document.getElementById('pricing-plans')?.scrollIntoView({ 
       behavior: 'smooth' 
     });
+    setMobileMenuOpen(false);
   };
 
   const isUserLoggedIn = () => {
@@ -394,19 +394,16 @@ export default function PricingPage() {
         return;
       }
 
-      // Store plan details for payment success page
       sessionStorage.setItem('selected_plan', selectedPlan.name);
       sessionStorage.setItem('plan_amount', selectedPlan.price.replace('₦', '').replace(',', ''));
       sessionStorage.setItem('plan_interval', selectedPlan.interval);
 
-      // Send the correct interval format to backend
       const requestBody = {
-        interval: selectedPlan.interval  // 'monthly' or 'annually'
+        interval: selectedPlan.interval
       };
       
       console.log('Sending request to:', `${API_URL}/v1/subscription`);
       console.log('Request body:', requestBody);
-      console.log('Selected plan:', selectedPlan);
 
       const response = await fetch(`${API_URL}/v1/subscription`, {
         method: 'POST',
@@ -429,7 +426,6 @@ export default function PricingPage() {
         const errorMessage = data.message || data.error || 'Failed to initialize subscription.';
         toast?.error(errorMessage);
         setShowPaymentModal(false);
-        // Clear session storage on error
         sessionStorage.removeItem('selected_plan');
         sessionStorage.removeItem('plan_amount');
         sessionStorage.removeItem('plan_interval');
@@ -438,7 +434,6 @@ export default function PricingPage() {
       console.error('Network error:', error);
       toast?.error('Network error. Please try again.');
       setShowPaymentModal(false);
-      // Clear session storage on error
       sessionStorage.removeItem('selected_plan');
       sessionStorage.removeItem('plan_amount');
       sessionStorage.removeItem('plan_interval');
@@ -456,15 +451,15 @@ export default function PricingPage() {
       scrollToPlans();
       toast?.info('Please subscribe to a plan to start selling!');
     }
+    setMobileMenuOpen(false);
   };
 
-  // Show loading state
   if (verifyingPayment) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
+      <div className="min-h-screen bg-white flex items-center justify-center p-4">
         <div className="text-center">
-          <FaSpinner className="animate-spin text-4xl text-yellow-500 mx-auto mb-4" />
-          <p className="text-gray-600">Verifying your payment...</p>
+          <FaSpinner className="animate-spin text-3xl sm:text-4xl text-yellow-500 mx-auto mb-4" />
+          <p className="text-gray-600 text-sm sm:text-base">Verifying your payment...</p>
         </div>
       </div>
     );
@@ -474,18 +469,18 @@ export default function PricingPage() {
     if (!hasSubscription) return null;
     
     return (
-      <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-8">
-        <div className="flex items-center justify-between flex-wrap gap-4">
-          <div className="flex items-center gap-3">
-            <FaCheck className="text-green-500 text-xl" />
+      <div className="bg-green-50 border border-green-200 rounded-lg p-3 sm:p-4 mb-6 sm:mb-8">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <FaCheck className="text-green-500 text-lg sm:text-xl flex-shrink-0" />
             <div>
-              <h3 className="font-bold text-green-800">You have an active subscription!</h3>
-              <p className="text-sm text-green-600">You can start selling right away.</p>
+              <h3 className="font-bold text-green-800 text-sm sm:text-base">You have an active subscription!</h3>
+              <p className="text-xs sm:text-sm text-green-600">You can start selling right away.</p>
             </div>
           </div>
           <button
             onClick={() => navigate('/start-selling')}
-            className="px-6 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition font-medium"
+            className="px-4 sm:px-6 py-1.5 sm:py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition font-medium text-sm sm:text-base w-full sm:w-auto"
           >
             Go to Start Selling
           </button>
@@ -523,22 +518,105 @@ export default function PricingPage() {
         processing={processingPlan === selectedPlan?.id}
       />
 
-      {/* Header */}
-      <div className="py-4 border-b border-gray-200 bg-white sticky top-0 z-50">
+      {/* Responsive Header */}
+      <div className="py-3 sm:py-4 border-b border-gray-200 bg-white sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between">
             <img 
               src={logo} 
               alt="LoopMart Logo" 
-              className="h-10 w-auto cursor-pointer"
+              className="h-8 sm:h-10 w-auto cursor-pointer"
               onClick={() => navigate('/')}
             />
+            
+            {/* Desktop Navigation */}
+            <div className="hidden md:flex items-center gap-4 lg:gap-6">
+              <button 
+                onClick={() => navigate('/')}
+                className="text-gray-600 hover:text-black transition text-sm lg:text-base"
+              >
+                Home
+              </button>
+              <button 
+                onClick={scrollToPlans}
+                className="text-gray-600 hover:text-black transition text-sm lg:text-base"
+              >
+                Pricing
+              </button>
+              <button 
+                onClick={() => navigate('/contact')}
+                className="text-gray-600 hover:text-black transition text-sm lg:text-base"
+              >
+                Contact
+              </button>
+              {!hasSubscription && (
+                <button
+                  onClick={handleStartSelling}
+                  className="px-4 lg:px-6 py-2 bg-yellow-500 text-black font-semibold rounded-lg hover:bg-yellow-600 transition text-sm lg:text-base"
+                >
+                  Start Selling
+                </button>
+              )}
+            </div>
+
+            {/* Mobile Menu Button */}
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="md:hidden p-2 rounded-lg hover:bg-gray-100 transition"
+            >
+              {mobileMenuOpen ? <FaClose size={20} /> : <FaBars size={20} />}
+            </button>
           </div>
+
+          {/* Mobile Navigation */}
+          {mobileMenuOpen && (
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="md:hidden mt-4 py-4 border-t border-gray-200"
+            >
+              <div className="flex flex-col gap-3">
+                <button 
+                  onClick={() => {
+                    navigate('/');
+                    setMobileMenuOpen(false);
+                  }}
+                  className="text-gray-600 hover:text-black transition py-2 text-left"
+                >
+                  Home
+                </button>
+                <button 
+                  onClick={scrollToPlans}
+                  className="text-gray-600 hover:text-black transition py-2 text-left"
+                >
+                  Pricing
+                </button>
+                <button 
+                  onClick={() => {
+                    navigate('/contact');
+                    setMobileMenuOpen(false);
+                  }}
+                  className="text-gray-600 hover:text-black transition py-2 text-left"
+                >
+                  Contact
+                </button>
+                {!hasSubscription && (
+                  <button
+                    onClick={handleStartSelling}
+                    className="px-4 py-2 bg-yellow-500 text-black font-semibold rounded-lg hover:bg-yellow-600 transition text-center"
+                  >
+                    Start Selling
+                  </button>
+                )}
+              </div>
+            </motion.div>
+          )}
         </div>
       </div>
 
-      {/* Hero Section */}
-      <div className="pt-12 pb-20">
+      {/* Hero Section - Responsive */}
+      <div className="pt-8 sm:pt-12 lg:pt-20 pb-12 sm:pb-16 lg:pb-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -546,37 +624,37 @@ export default function PricingPage() {
             transition={{ duration: 0.8 }}
             className="text-center"
           >
-            <div className="inline-flex items-center justify-center px-4 py-2 bg-yellow-50 border border-yellow-200 rounded-full mb-6">
-              <span className="text-sm font-semibold text-yellow-800 flex items-center gap-2">
-                <FaRocket className="text-yellow-600" />
+            <div className="inline-flex items-center justify-center px-3 sm:px-4 py-1.5 sm:py-2 bg-yellow-50 border border-yellow-200 rounded-full mb-4 sm:mb-6">
+              <span className="text-xs sm:text-sm font-semibold text-yellow-800 flex items-center gap-1 sm:gap-2">
+                <FaRocket className="text-yellow-600 text-xs sm:text-sm" />
                 GROW YOUR BUSINESS ONLINE
               </span>
             </div>
             
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-black mb-6 leading-tight">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-black mb-4 sm:mb-6 leading-tight">
               Professional E-Commerce
               <span className="block text-yellow-600 mt-2">
                 Without the Complexity
               </span>
             </h1>
             
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-8 leading-relaxed">
+            <p className="text-base sm:text-lg lg:text-xl text-gray-600 max-w-3xl mx-auto mb-6 sm:mb-8 leading-relaxed px-4">
               LoopMart provides enterprise-grade online selling infrastructure. 
               Focus on your business while we handle the platform, visibility, and connections.
             </p>
             
-            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center items-center px-4">
               <button 
                 onClick={scrollToPlans}
-                className="px-8 py-3 bg-black text-white font-semibold rounded-lg hover:bg-gray-900 transition-colors duration-300 flex items-center gap-2 shadow-md hover:shadow-lg"
+                className="w-full sm:w-auto px-6 sm:px-8 py-2.5 sm:py-3 bg-black text-white font-semibold rounded-lg hover:bg-gray-900 transition-colors duration-300 flex items-center justify-center gap-2 shadow-md hover:shadow-lg text-sm sm:text-base"
               >
                 View Pricing Plans
-                <FaArrowRight />
+                <FaArrowRight className="text-sm sm:text-base" />
               </button>
               
               <button
                 onClick={handleStartSelling}
-                className="px-8 py-3 border-2 border-black text-black font-semibold rounded-lg hover:bg-gray-50 transition-colors duration-300"
+                className="w-full sm:w-auto px-6 sm:px-8 py-2.5 sm:py-3 border-2 border-black text-black font-semibold rounded-lg hover:bg-gray-50 transition-colors duration-300 text-sm sm:text-base"
               >
                 {hasSubscription ? 'Start Selling Now' : 'Get Started'}
               </button>
@@ -585,18 +663,18 @@ export default function PricingPage() {
         </div>
       </div>
 
-      {/* Pricing Plans Section */}
-      <div id="pricing-plans" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="text-center mb-16">
+      {/* Pricing Plans Section - Responsive Grid */}
+      <div id="pricing-plans" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 lg:py-20">
+        <div className="text-center mb-10 sm:mb-16">
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.3 }}
           >
-            <h2 className="text-3xl md:text-4xl font-bold text-black mb-6">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-black mb-4 sm:mb-6">
               Simple, Transparent Pricing
             </h2>
-            <p className="text-gray-600 max-w-2xl mx-auto text-lg">
+            <p className="text-sm sm:text-base lg:text-lg text-gray-600 max-w-2xl mx-auto px-4">
               Choose the plan that aligns with your business goals. Both include 
               our core platform features with varying levels of premium benefits.
             </p>
@@ -605,7 +683,7 @@ export default function PricingPage() {
 
         <SubscriptionStatusBanner />
 
-        <div className="grid md:grid-cols-2 gap-8 lg:gap-12 max-w-6xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8 lg:gap-12 max-w-6xl mx-auto">
           {vendorPlans.map((plan, index) => (
             <motion.div
               key={plan.name}
@@ -620,38 +698,38 @@ export default function PricingPage() {
             >
               {plan.popular && (
                 <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 z-10">
-                  <div className="px-6 py-2 bg-yellow-500 text-black text-sm font-bold rounded-full shadow-lg flex items-center gap-2">
-                    <FaCrown />
+                  <div className="px-4 sm:px-6 py-1.5 sm:py-2 bg-yellow-500 text-black text-xs sm:text-sm font-bold rounded-full shadow-lg flex items-center gap-1 sm:gap-2 whitespace-nowrap">
+                    <FaCrown className="text-sm sm:text-base" />
                     RECOMMENDED
                   </div>
                 </div>
               )}
               
-              <div className="p-8 bg-white">
-                <div className="mb-8">
+              <div className="p-5 sm:p-6 md:p-8 bg-white">
+                <div className="mb-6 sm:mb-8">
                   <div className="flex items-center justify-between mb-4">
                     <div>
-                      <h3 className="text-2xl font-bold text-black">{plan.name}</h3>
-                      <p className="text-gray-600 mt-1 text-sm">{plan.description}</p>
+                      <h3 className="text-xl sm:text-2xl font-bold text-black">{plan.name}</h3>
+                      <p className="text-xs sm:text-sm text-gray-600 mt-1">{plan.description}</p>
                     </div>
-                    <div className={`p-3 rounded-full ${
+                    <div className={`p-2 sm:p-3 rounded-full ${
                       plan.popular ? 'bg-yellow-500 text-black' : 'bg-black text-white'
                     } shadow-sm`}>
                       {plan.popular ? (
-                        <FaTrophy className="text-xl" />
+                        <FaTrophy className="text-lg sm:text-xl" />
                       ) : (
-                        <FaStore className="text-xl" />
+                        <FaStore className="text-lg sm:text-xl" />
                       )}
                     </div>
                   </div>
                   
                   <div className="mb-4">
-                    <div className="flex items-baseline">
-                      <span className="text-5xl font-bold text-black">{plan.price}</span>
-                      <span className="ml-2 text-gray-500">/{plan.period}</span>
+                    <div className="flex items-baseline flex-wrap">
+                      <span className="text-3xl sm:text-4xl md:text-5xl font-bold text-black">{plan.price}</span>
+                      <span className="ml-2 text-sm sm:text-base text-gray-500">/{plan.period}</span>
                     </div>
                     {plan.highlight && (
-                      <p className={`mt-2 text-sm font-medium ${
+                      <p className={`mt-2 text-xs sm:text-sm font-medium ${
                         plan.popular ? 'text-yellow-600' : 'text-gray-500'
                       }`}>
                         {plan.highlight}
@@ -662,7 +740,7 @@ export default function PricingPage() {
                   <button
                     onClick={() => handlePlanSelection(plan)}
                     disabled={hasSubscription}
-                    className={`w-full py-3 px-6 rounded-lg font-semibold text-lg transition-all duration-300 ${
+                    className={`w-full py-2.5 sm:py-3 px-4 sm:px-6 rounded-lg font-semibold text-sm sm:text-base lg:text-lg transition-all duration-300 ${
                       hasSubscription
                         ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                         : plan.popular
@@ -674,18 +752,18 @@ export default function PricingPage() {
                   </button>
                 </div>
                 
-                <div className="border-t border-gray-100 pt-8">
-                  <h4 className="text-lg font-semibold text-black mb-6 flex items-center gap-2">
-                    <FaCheck className="text-green-500" />
+                <div className="border-t border-gray-100 pt-6 sm:pt-8">
+                  <h4 className="text-base sm:text-lg font-semibold text-black mb-4 sm:mb-6 flex items-center gap-2">
+                    <FaCheck className="text-green-500 text-sm sm:text-base" />
                     Included Features
                   </h4>
-                  <ul className="space-y-4">
+                  <ul className="space-y-3 sm:space-y-4">
                     {plan.features.map((feature, idx) => (
-                      <li key={idx} className="flex items-start">
-                        <div className="flex-shrink-0 mt-1 text-yellow-500">
-                          <feature.icon className="text-lg" />
+                      <li key={idx} className="flex items-start gap-2 sm:gap-3">
+                        <div className="flex-shrink-0 mt-0.5 text-yellow-500">
+                          <feature.icon className="text-base sm:text-lg" />
                         </div>
-                        <span className="ml-3 text-gray-700">
+                        <span className="text-sm sm:text-base text-gray-700">
                           {feature.text}
                         </span>
                       </li>
@@ -698,53 +776,53 @@ export default function PricingPage() {
         </div>
       </div>
 
-      {/* Rest of your sections */}
-      <div className="bg-black py-20">
+      {/* Why Choose Us Section - Responsive */}
+      <div className="bg-black py-12 sm:py-16 lg:py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">
+          <div className="text-center mb-10 sm:mb-16">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-4 sm:mb-6">
               Why Professional Vendors Choose LoopMart
             </h2>
-            <p className="text-gray-300 max-w-3xl mx-auto text-lg">
+            <p className="text-sm sm:text-base lg:text-lg text-gray-300 max-w-3xl mx-auto px-4">
               Our platform is designed for serious businesses looking to establish 
               and grow their online presence with minimal friction.
             </p>
           </div>
           
-          <div className="grid md:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
             <motion.div
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.6 }}
-              className="bg-gray-900 rounded-2xl p-8 border border-gray-800 hover:border-yellow-500/30 transition-colors duration-300"
+              className="bg-gray-900 rounded-2xl p-6 sm:p-8 border border-gray-800 hover:border-yellow-500/30 transition-colors duration-300"
             >
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-12 h-12 rounded-lg bg-green-500/20 flex items-center justify-center border border-green-500/30">
-                  <FaCheck className="text-green-400 text-xl" />
+              <div className="flex items-center gap-3 mb-4 sm:mb-6">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-green-500/20 flex items-center justify-center border border-green-500/30">
+                  <FaCheck className="text-green-400 text-lg sm:text-xl" />
                 </div>
-                <h3 className="text-2xl font-bold text-white">Our Value Proposition</h3>
+                <h3 className="text-xl sm:text-2xl font-bold text-white">Our Value Proposition</h3>
               </div>
               
-              <ul className="space-y-4">
-                <li className="flex items-start">
-                  <FaStore className="text-yellow-400 mt-1 mr-3 flex-shrink-0" />
+              <ul className="space-y-3 sm:space-y-4">
+                <li className="flex items-start gap-2 sm:gap-3">
+                  <FaStore className="text-yellow-400 mt-1 flex-shrink-0 text-sm sm:text-base" />
                   <div>
-                    <h4 className="font-semibold text-white mb-1">Complete E-Commerce Platform</h4>
-                    <p className="text-gray-300">Full-featured online shop without technical complexity</p>
+                    <h4 className="font-semibold text-white text-sm sm:text-base mb-1">Complete E-Commerce Platform</h4>
+                    <p className="text-gray-300 text-xs sm:text-sm">Full-featured online shop without technical complexity</p>
                   </div>
                 </li>
-                <li className="flex items-start">
-                  <FaHandshake className="text-yellow-400 mt-1 mr-3 flex-shrink-0" />
+                <li className="flex items-start gap-2 sm:gap-3">
+                  <FaHandshake className="text-yellow-400 mt-1 flex-shrink-0 text-sm sm:text-base" />
                   <div>
-                    <h4 className="font-semibold text-white mb-1">Direct Business Relationships</h4>
-                    <p className="text-gray-300">Build lasting customer connections with full transaction control</p>
+                    <h4 className="font-semibold text-white text-sm sm:text-base mb-1">Direct Business Relationships</h4>
+                    <p className="text-gray-300 text-xs sm:text-sm">Build lasting customer connections with full transaction control</p>
                   </div>
                 </li>
-                <li className="flex items-start">
-                  <MdTrendingUp className="text-yellow-400 mt-1 mr-3 flex-shrink-0 text-xl" />
+                <li className="flex items-start gap-2 sm:gap-3">
+                  <MdTrendingUp className="text-yellow-400 mt-1 flex-shrink-0 text-base sm:text-xl" />
                   <div>
-                    <h4 className="font-semibold text-white mb-1">Growth Infrastructure</h4>
-                    <p className="text-gray-300">Scalable tools designed for business expansion</p>
+                    <h4 className="font-semibold text-white text-sm sm:text-base mb-1">Growth Infrastructure</h4>
+                    <p className="text-gray-300 text-xs sm:text-sm">Scalable tools designed for business expansion</p>
                   </div>
                 </li>
               </ul>
@@ -754,34 +832,34 @@ export default function PricingPage() {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.6, delay: 0.2 }}
-              className="bg-gray-900 rounded-2xl p-8 border border-gray-800 hover:border-red-500/30 transition-colors duration-300"
+              className="bg-gray-900 rounded-2xl p-6 sm:p-8 border border-gray-800 hover:border-red-500/30 transition-colors duration-300"
             >
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-12 h-12 rounded-lg bg-red-500/20 flex items-center justify-center border border-red-500/30">
-                  <FaTimesCircle className="text-red-400 text-xl" />
+              <div className="flex items-center gap-3 mb-4 sm:mb-6">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-red-500/20 flex items-center justify-center border border-red-500/30">
+                  <FaTimesCircle className="text-red-400 text-lg sm:text-xl" />
                 </div>
-                <h3 className="text-2xl font-bold text-white">What We're Not</h3>
+                <h3 className="text-xl sm:text-2xl font-bold text-white">What We're Not</h3>
               </div>
               
-              <ul className="space-y-4">
-                <li className="flex items-start">
-                  <FaCreditCard className="text-red-400 mt-1 mr-3 flex-shrink-0" />
+              <ul className="space-y-3 sm:space-y-4">
+                <li className="flex items-start gap-2 sm:gap-3">
+                  <FaCreditCard className="text-red-400 mt-1 flex-shrink-0 text-sm sm:text-base" />
                   <div>
-                    <h4 className="font-semibold text-white mb-1">Not a Payment Processor</h4>
-                    <p className="text-gray-300">We don't handle transactions or collect fees on your sales</p>
+                    <h4 className="font-semibold text-white text-sm sm:text-base mb-1">Not a Payment Processor</h4>
+                    <p className="text-gray-300 text-xs sm:text-sm">We don't handle transactions or collect fees on your sales</p>
                   </div>
                 </li>
-                <li className="flex items-start">
-                  <MdAttachMoney className="text-red-400 mt-1 mr-3 flex-shrink-0 text-xl" />
+                <li className="flex items-start gap-2 sm:gap-3">
+                  <MdAttachMoney className="text-red-400 mt-1 flex-shrink-0 text-base sm:text-xl" />
                   <div>
-                    <h4 className="font-semibold text-white mb-1">Not a Middleman</h4>
-                    <p className="text-gray-300">No commission fees or hidden charges on your revenue</p>
+                    <h4 className="font-semibold text-white text-sm sm:text-base mb-1">Not a Middleman</h4>
+                    <p className="text-gray-300 text-xs sm:text-sm">No commission fees or hidden charges on your revenue</p>
                   </div>
                 </li>
-                <li className="flex items-start">
-                  <FaLock className="text-yellow-400 mt-1 mr-3 flex-shrink-0" />
-                  <div className="bg-gray-800 rounded-xl p-4 mt-2 border border-gray-700">
-                    <p className="text-white font-medium">
+                <li className="flex items-start gap-2 sm:gap-3">
+                  <FaLock className="text-yellow-400 mt-1 flex-shrink-0 text-sm sm:text-base" />
+                  <div className="bg-gray-800 rounded-xl p-3 sm:p-4 mt-2 border border-gray-700 w-full">
+                    <p className="text-white text-xs sm:text-sm font-medium">
                       💡 You maintain complete financial control. Buyers pay you directly, 
                       and you receive 100% of your sales revenue.
                     </p>
@@ -793,59 +871,61 @@ export default function PricingPage() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-        <div className="text-center mb-16">
-          <h2 className="text-3xl md:text-4xl font-bold text-black mb-6">
+      {/* Features Grid - Responsive */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 lg:py-20">
+        <div className="text-center mb-10 sm:mb-16">
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-black mb-4 sm:mb-6">
             Professional-Grade Features
           </h2>
-          <p className="text-gray-600 max-w-3xl mx-auto text-lg">
+          <p className="text-sm sm:text-base lg:text-lg text-gray-600 max-w-3xl mx-auto px-4">
             Tools and capabilities designed for serious business growth
           </p>
         </div>
         
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
           {features.map((feature, index) => (
             <motion.div
               key={feature.title}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: index * 0.1 }}
-              className="group bg-white p-8 rounded-2xl border border-gray-200 hover:border-yellow-300 hover:shadow-xl transition-all duration-300"
+              className="group bg-white p-6 sm:p-8 rounded-2xl border border-gray-200 hover:border-yellow-300 hover:shadow-xl transition-all duration-300"
             >
-              <div className={`w-14 h-14 rounded-xl ${
+              <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-xl ${
                 index % 2 === 0 ? 'bg-yellow-50' : 'bg-gray-50'
-              } flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 border ${
+              } flex items-center justify-center mb-4 sm:mb-6 group-hover:scale-110 transition-transform duration-300 border ${
                 index % 2 === 0 ? 'border-yellow-100' : 'border-gray-100'
               }`}>
-                <feature.icon className={`text-2xl ${
+                <feature.icon className={`text-xl sm:text-2xl ${
                   index % 2 === 0 ? 'text-yellow-600' : 'text-black'
                 }`} />
               </div>
-              <h3 className="text-xl font-bold text-black mb-3">{feature.title}</h3>
-              <p className="text-gray-600 leading-relaxed">{feature.description}</p>
+              <h3 className="text-lg sm:text-xl font-bold text-black mb-2 sm:mb-3">{feature.title}</h3>
+              <p className="text-sm sm:text-base text-gray-600 leading-relaxed">{feature.description}</p>
             </motion.div>
           ))}
         </div>
       </div>
 
-      <div className="bg-gray-50 py-20">
+      {/* FAQ Section - Responsive */}
+      <div className="bg-gray-50 py-12 sm:py-16 lg:py-20">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <div className="inline-flex items-center justify-center px-4 py-2 bg-white rounded-full mb-6 shadow-sm border border-gray-200">
-              <span className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                <FaHeadset className="text-yellow-600" />
+          <div className="text-center mb-10 sm:mb-16">
+            <div className="inline-flex items-center justify-center px-3 sm:px-4 py-1.5 sm:py-2 bg-white rounded-full mb-4 sm:mb-6 shadow-sm border border-gray-200">
+              <span className="text-xs sm:text-sm font-semibold text-gray-700 flex items-center gap-1 sm:gap-2">
+                <FaHeadset className="text-yellow-600 text-xs sm:text-sm" />
                 SUPPORT & GUIDANCE
               </span>
             </div>
-            <h2 className="text-3xl md:text-4xl font-bold text-black mb-6">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-black mb-4 sm:mb-6">
               Frequently Asked Questions
             </h2>
-            <p className="text-gray-600 max-w-2xl mx-auto">
+            <p className="text-sm sm:text-base text-gray-600 max-w-2xl mx-auto px-4">
               Clear answers to help you make informed decisions about your business
             </p>
           </div>
           
-          <div className="space-y-4">
+          <div className="space-y-3 sm:space-y-4">
             {faqs.map((faq, index) => (
               <motion.div
                 key={index}
@@ -856,11 +936,11 @@ export default function PricingPage() {
               >
                 <button
                   onClick={() => setActiveFAQ(activeFAQ === index ? null : index)}
-                  className="w-full p-6 text-left flex justify-between items-center hover:bg-gray-50 transition-colors"
+                  className="w-full p-4 sm:p-6 text-left flex justify-between items-center hover:bg-gray-50 transition-colors"
                   aria-expanded={activeFAQ === index}
                 >
-                  <span className="text-lg font-semibold text-black pr-8">{faq.question}</span>
-                  <span className={`text-gray-500 text-xl transition-transform duration-300 ${activeFAQ === index ? 'rotate-180' : ''}`}>
+                  <span className="text-sm sm:text-base lg:text-lg font-semibold text-black pr-4 sm:pr-8">{faq.question}</span>
+                  <span className={`text-gray-500 text-sm sm:text-base transition-transform duration-300 ${activeFAQ === index ? 'rotate-180' : ''}`}>
                     ▼
                   </span>
                 </button>
@@ -871,8 +951,8 @@ export default function PricingPage() {
                     exit={{ opacity: 0, height: 0 }}
                     className="overflow-hidden"
                   >
-                    <div className="px-6 pb-6">
-                      <p className="text-gray-600 leading-relaxed">{faq.answer}</p>
+                    <div className="px-4 sm:px-6 pb-4 sm:pb-6">
+                      <p className="text-sm sm:text-base text-gray-600 leading-relaxed">{faq.answer}</p>
                     </div>
                   </motion.div>
                 )}
@@ -882,59 +962,60 @@ export default function PricingPage() {
         </div>
       </div>
 
-      <div className="bg-black py-20">
+      {/* CTA Section - Responsive */}
+      <div className="bg-black py-12 sm:py-16 lg:py-20">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.6 }}
           >
-            <div className="inline-flex items-center justify-center px-4 py-2 bg-yellow-500/20 rounded-full mb-8 border border-yellow-500/30">
-              <span className="text-sm font-semibold text-yellow-300 flex items-center gap-2">
-                <FaBolt />
+            <div className="inline-flex items-center justify-center px-3 sm:px-4 py-1.5 sm:py-2 bg-yellow-500/20 rounded-full mb-6 sm:mb-8 border border-yellow-500/30">
+              <span className="text-xs sm:text-sm font-semibold text-yellow-300 flex items-center gap-1 sm:gap-2">
+                <FaBolt className="text-xs sm:text-sm" />
                 READY TO ELEVATE YOUR BUSINESS
               </span>
             </div>
             
-            <h2 className="text-3xl lg:text-4xl font-bold text-white mb-6">
+            <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-white mb-4 sm:mb-6 px-4">
               {hasSubscription ? 'Continue Your Professional Journey' : 'Start Your Professional Online Journey Today'}
             </h2>
             
-            <p className="text-gray-300 text-lg mb-10 max-w-2xl mx-auto">
+            <p className="text-sm sm:text-base lg:text-lg text-gray-300 mb-8 sm:mb-10 max-w-2xl mx-auto px-4">
               {hasSubscription 
                 ? 'Your subscription is active. Start listing products and growing your business right now!'
                 : 'Join thousands of successful vendors who trust LoopMart for their online business infrastructure. No technical skills required.'}
             </p>
             
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center px-4">
               <button 
                 onClick={handleStartSelling}
-                className="px-8 py-4 bg-yellow-500 text-black font-bold rounded-lg hover:bg-yellow-600 transition-all duration-300 text-lg shadow-lg hover:shadow-xl flex items-center justify-center gap-3 border border-yellow-600"
+                className="px-6 sm:px-8 py-3 sm:py-4 bg-yellow-500 text-black font-bold rounded-lg hover:bg-yellow-600 transition-all duration-300 text-sm sm:text-base lg:text-lg shadow-lg hover:shadow-xl flex items-center justify-center gap-2 sm:gap-3 border border-yellow-600"
               >
-                <FaStore />
+                <FaStore className="text-sm sm:text-base" />
                 {hasSubscription ? 'Go to Start Selling' : 'Create Your Professional Shop'}
-                <FaArrowRight />
+                <FaArrowRight className="text-sm sm:text-base" />
               </button>
               <button 
                 onClick={() => navigate('/contact')}
-                className="px-8 py-4 bg-transparent border-2 border-yellow-500 text-yellow-500 font-bold rounded-lg hover:bg-yellow-500/10 transition-all duration-300 text-lg"
+                className="px-6 sm:px-8 py-3 sm:py-4 bg-transparent border-2 border-yellow-500 text-yellow-500 font-bold rounded-lg hover:bg-yellow-500/10 transition-all duration-300 text-sm sm:text-base lg:text-lg"
               >
                 Schedule Business Consultation
               </button>
             </div>
             
-            <div className="mt-10 grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-xl mx-auto">
+            <div className="mt-8 sm:mt-10 grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 max-w-xl mx-auto px-4">
               <div className="text-center">
-                <div className="text-2xl font-bold text-white">No Setup Fee</div>
-                <div className="text-sm text-gray-400">Start instantly</div>
+                <div className="text-lg sm:text-2xl font-bold text-white">No Setup Fee</div>
+                <div className="text-xs sm:text-sm text-gray-400">Start instantly</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-white">30-Day Trial</div>
-                <div className="text-sm text-gray-400">Risk-free start</div>
+                <div className="text-lg sm:text-2xl font-bold text-white">30-Day Trial</div>
+                <div className="text-xs sm:text-sm text-gray-400">Risk-free start</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-white">24/7 Support</div>
-                <div className="text-sm text-gray-400">Always available</div>
+                <div className="text-lg sm:text-2xl font-bold text-white">24/7 Support</div>
+                <div className="text-xs sm:text-sm text-gray-400">Always available</div>
               </div>
             </div>
           </motion.div>
