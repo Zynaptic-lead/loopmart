@@ -1,4 +1,4 @@
-// src/pages/PricingPage.jsx - COMPLETE WORKING VERSION WITH REDIRECT
+// src/pages/PricingPage.jsx - CORRECTED WITH ANNUALLY INTERVAL
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -25,7 +25,7 @@ const vendorPlans = [
     name: 'Monthly Plan',
     price: '₦1,000',
     period: 'month',
-    interval: 'monthly',
+    interval: 'monthly',  // ✅ Backend expects 'monthly'
     description: 'Flexible monthly subscription for growing businesses',
     features: [
       { text: 'Dedicated online shop on LoopMart', icon: IoIosBusiness },
@@ -45,7 +45,7 @@ const vendorPlans = [
     name: 'Yearly Plan',
     price: '₦10,000',
     period: 'year',
-    interval: 'yearly',
+    interval: 'annually',  // ✅ Backend expects 'annually' (NOT 'yearly')
     description: 'Annual plan with maximum savings & benefits',
     features: [
       { text: 'All Monthly Plan features', icon: FaCheck },
@@ -306,6 +306,7 @@ export default function PricingPage() {
         toast?.success('Payment successful! Your subscription is now active.');
         const expiryDate = new Date(data.data.expires_at);
         setSubscription(true, expiryDate);
+        // Redirect to start selling after successful payment
         window.location.href = '/start-selling';
       } else {
         toast?.info('Payment completed. Activating your subscription...');
@@ -393,12 +394,19 @@ export default function PricingPage() {
         return;
       }
 
+      // Store plan details for payment success page
+      sessionStorage.setItem('selected_plan', selectedPlan.name);
+      sessionStorage.setItem('plan_amount', selectedPlan.price.replace('₦', '').replace(',', ''));
+      sessionStorage.setItem('plan_interval', selectedPlan.interval);
+
+      // Send the correct interval format to backend
       const requestBody = {
-        interval: selectedPlan.interval
+        interval: selectedPlan.interval  // 'monthly' or 'annually'
       };
       
       console.log('Sending request to:', `${API_URL}/v1/subscription`);
       console.log('Request body:', requestBody);
+      console.log('Selected plan:', selectedPlan);
 
       const response = await fetch(`${API_URL}/v1/subscription`, {
         method: 'POST',
@@ -421,11 +429,19 @@ export default function PricingPage() {
         const errorMessage = data.message || data.error || 'Failed to initialize subscription.';
         toast?.error(errorMessage);
         setShowPaymentModal(false);
+        // Clear session storage on error
+        sessionStorage.removeItem('selected_plan');
+        sessionStorage.removeItem('plan_amount');
+        sessionStorage.removeItem('plan_interval');
       }
     } catch (error) {
       console.error('Network error:', error);
       toast?.error('Network error. Please try again.');
       setShowPaymentModal(false);
+      // Clear session storage on error
+      sessionStorage.removeItem('selected_plan');
+      sessionStorage.removeItem('plan_amount');
+      sessionStorage.removeItem('plan_interval');
     } finally {
       setProcessingPlan(null);
     }
@@ -682,7 +698,7 @@ export default function PricingPage() {
         </div>
       </div>
 
-      {/* Rest of your sections remain the same... */}
+      {/* Rest of your sections */}
       <div className="bg-black py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
