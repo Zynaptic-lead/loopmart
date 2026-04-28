@@ -1,24 +1,45 @@
-// App.jsx
+// App.jsx - Cleaner version with route constants
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import { useEffect } from 'react'
 import { SubscriptionProvider } from './contexts/SubscriptionContext'
 import { NotificationProvider } from './contexts/NotificationContext'
 import RootLayout from './layouts/RootLayout'
+import { ToastProvider } from './contexts/ToastContext'
+import ProtectedRoute from './components/ProtectedRoute'
+
+// Page Imports
 import HomePage from './pages/HomePage'
 import PricingPage from './pages/PricingPage'
-import { ToastProvider } from './contexts/ToastContext'
 import NotificationsPage from './pages/NotificationsPage'
 import ProductDetails from './pages/ProductDetails'
 import SellingSuccessPage from './pages/SellingSuccessPage'
 import StartSelling from './pages/StartSelling'
-import ShopPage from './pages/ShopPage';
+import ShopPage from './pages/ShopPage'
 import DashboardPage from './pages/DashboardPage'
-import ProtectedRoute from './components/ProtectedRoute'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
 import ForgotPasswordPage from './pages/ForgotPasswordPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
 import VerifyOtpPage from './pages/VerifyOtpPage'
+import PaymentSuccessPage from './pages/PaymentSuccessPage'  // NEW PAGE
+
+// Route Constants
+const ROUTES = {
+  HOME: '/',
+  PRICING: '/pricing',
+  PRODUCT_DETAILS: '/products/:id',
+  SHOP: '/shop/:slug',
+  LOGIN: '/login',
+  REGISTER: '/register',
+  FORGOT_PASSWORD: '/forgot-password',
+  RESET_PASSWORD: '/reset-password',
+  VERIFY_OTP: '/verify-otp',
+  PAYMENT_SUCCESS: '/payment-success',  // NEW ROUTE
+  NOTIFICATIONS: '/notifications',
+  START_SELLING: '/start-selling',
+  DASHBOARD: '/dashboard',
+  SELLING_SUCCESS: '/selling-success',
+}
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://loopmart.ng/api';
 
@@ -29,7 +50,6 @@ function App() {
   useEffect(() => {
     console.log('🔍 useEffect running - checking for token');
     
-    // Get token from URL
     const urlParams = new URLSearchParams(window.location.search);
     const token = urlParams.get('token');
     
@@ -40,11 +60,9 @@ function App() {
       console.log('✅ Storing token in localStorage');
       localStorage.setItem('loopmart_token', token);
       
-      // Clear the URL
       window.history.replaceState({}, document.title, window.location.pathname);
       console.log('🧹 Token removed from URL');
       
-      // Reload to let the app pick up the token
       setTimeout(() => {
         console.log('🔄 Reloading app...');
         window.location.reload();
@@ -59,31 +77,35 @@ function App() {
           <Router>
             <RootLayout>
               <Routes>
-                <Route path="/" element={<HomePage />} />
-                <Route path="/pricing" element={<PricingPage />} />
-                <Route path="/products/:id" element={<ProductDetails />} />
-                <Route path="/shop/:slug" element={<ShopPage />} />
-                <Route path="/login" element={<LoginPage />} />
-                <Route path="/register" element={<RegisterPage />} />
-                <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-                <Route path="/reset-password" element={<ResetPasswordPage />} />
-                <Route path="/verify-otp" element={<VerifyOtpPage />} />
-                <Route path="/notifications" element={
+                {/* Public Routes */}
+                <Route path={ROUTES.HOME} element={<HomePage />} />
+                <Route path={ROUTES.PRICING} element={<PricingPage />} />
+                <Route path={ROUTES.PRODUCT_DETAILS} element={<ProductDetails />} />
+                <Route path={ROUTES.SHOP} element={<ShopPage />} />
+                <Route path={ROUTES.LOGIN} element={<LoginPage />} />
+                <Route path={ROUTES.REGISTER} element={<RegisterPage />} />
+                <Route path={ROUTES.FORGOT_PASSWORD} element={<ForgotPasswordPage />} />
+                <Route path={ROUTES.RESET_PASSWORD} element={<ResetPasswordPage />} />
+                <Route path={ROUTES.VERIFY_OTP} element={<VerifyOtpPage />} />
+                <Route path={ROUTES.PAYMENT_SUCCESS} element={<PaymentSuccessPage />} />
+                
+                {/* Protected Routes */}
+                <Route path={ROUTES.NOTIFICATIONS} element={
                   <ProtectedRoute>
                     <NotificationsPage />
                   </ProtectedRoute>
                 } />
-                <Route path="/start-selling" element={
+                <Route path={ROUTES.START_SELLING} element={
                   <ProtectedRoute>
                     <StartSelling />
                   </ProtectedRoute>
                 } />
-                <Route path="/dashboard" element={
+                <Route path={ROUTES.DASHBOARD} element={
                   <ProtectedRoute>
                     <DashboardPage />
                   </ProtectedRoute>
                 } />
-                <Route path="/selling-success" element={
+                <Route path={ROUTES.SELLING_SUCCESS} element={
                   <ProtectedRoute>
                     <SellingSuccessPage />
                   </ProtectedRoute>
