@@ -9,26 +9,26 @@ import {
   FaArrowRight, 
   FaTachometerAlt, 
   FaHome,
-  FaShoppingCart
+  FaShoppingCart,
+  FaSpinner
 } from 'react-icons/fa';
 import logo from '../assets/logo.png';
+import { useSubscription } from '../contexts/SubscriptionContext';
+import { useToast } from '../contexts/ToastContext';
 
 export default function PaymentSuccessPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { checkSubscription, hasSubscription } = useSubscription();
+  const toast = useToast();
   
   const [paymentDetails, setPaymentDetails] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userData, setUserData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [verifyingSubscription, setVerifyingSubscription] = useState(false);
 
   useEffect(() => {
-    // Get payment details from URL params or location state
-    const params = new URLSearchParams(location.search);
-    const sessionId = params.get('session_id');
-    const plan = params.get('plan');
-    const amount = params.get('amount');
-    const paymentIntent = params.get('payment_intent');
-    
     // Check if user is logged in
     const token = localStorage.getItem('loopmart_token');
     const user = localStorage.getItem('loopmart_user');
@@ -38,44 +38,95 @@ export default function PaymentSuccessPage() {
       setUserData(JSON.parse(user));
     }
     
-    // Get payment details from state (if passed via navigate)
-    if (location.state?.paymentDetails) {
+    // Get payment details from URL params (Paystack returns these)
+    const params = new URLSearchParams(location.search);
+    const reference = params.get('reference');
+    const trxref = params.get('trxref');
+    const paymentRef = reference || trxref;
+    
+    // Get plan from sessionStorage (set when user selected plan)
+    const selectedPlan = sessionStorage.getItem('selected_plan');
+    const planAmount = sessionStorage.getItem('plan_amount');
+    const planInterval = sessionStorage.getItem('plan_interval');
+    
+    console.log('Payment Success Page - URL Params:', {
+      reference,
+      trxref,
+      paymentRef,
+      selectedPlan,
+      planAmount,
+      planInterval
+    });
+    
+    if (paymentRef) {
+      // Real payment from Paystack
+      setPaymentDetails({
+        plan: selectedPlan || 'Seller Plan',
+        planInterval: planInterval || 'monthly',
+        amount: planAmount || '0',
+        transactionId: paymentRef,
+        timestamp: new Date().toLocaleString(),
+        status: 'completed',
+        isRealPayment: true
+      });
+      
+      // Verify subscription status after successful payment
+      verifyAndUpdateSubscription();
+    } else if (location.state?.paymentDetails) {
+      // Payment details passed via navigation state
       setPaymentDetails(location.state.paymentDetails);
-    } else if (sessionId || paymentIntent) {
-      setPaymentDetails({
-        sessionId: sessionId,
-        plan: plan || 'Premium',
-        amount: amount || '0',
-        transactionId: paymentIntent || sessionId,
-        timestamp: new Date().toLocaleString(),
-        status: 'completed'
-      });
     } else {
-      // Demo/default data for testing
-      setPaymentDetails({
-        plan: 'Seller Pro',
-        amount: '29.99',
-        transactionId: 'TXN_' + Math.random().toString(36).substr(2, 9).toUpperCase(),
-        timestamp: new Date().toLocaleString(),
-        status: 'completed'
-      });
+      // No payment reference found - redirect to pricing
+      console.error('No payment reference found');
+      toast?.error('Invalid payment session. Please subscribe again.');
+      navigate('/pricing');
     }
     
-    // Toast message removed
-    
+    setLoading(false);
   }, [location]);
 
-  const handleListProduct = () => {
+  const verifyAndUpdateSubscription = async () => {
+    setVerifyingSubscription(true);
+    try {
+      // Refresh subscription status from backend
+      const isActive = await checkSubscription();
+      console.log('Subscription verification result:', isActive);
+      
+      if (isActive) {
+        toast?.success('Subscription activated successfully!');
+      } else {
+        // Wait a bit and retry
+        setTimeout(async () => {
+          await checkSubscription();
+        }, 3000);
+      }
+    } catch (error) {
+      console.error('Error verifying subscription:', error);
+    } finally {
+      setVerifyingSubscription(false);
+      // Clear session storage
+      sessionStorage.removeItem('selected_plan');
+      sessionStorage.removeItem('plan_amount');
+      sessionStorage.removeItem('plan_interval');
+    }
+  };
+
+  const handleListProduct = async () => {
     if (!isAuthenticated) {
       navigate('/login?redirect=/start-selling');
       return;
     }
     
-    // Check if user has seller privileges
-    if (userData?.isSeller || userData?.subscriptionStatus === 'active') {
+    // Check subscription status first
+    const isActive = await checkSubscription();
+    
+    if (isActive) {
+      // User has active subscription, go to start selling
       navigate('/start-selling');
     } else {
-      navigate('/pricing?reason=seller_upgrade');
+      // No active subscription, go to pricing
+      toast?.error('Please subscribe to a plan to list products');
+      navigate('/pricing');
     }
   };
 
@@ -89,6 +140,27 @@ export default function PaymentSuccessPage() {
 
   const handleBrowseProducts = () => {
     navigate('/');
+  };
+
+  if (loading || verifyingSubscription) {
+    return (
+      <div className="min-h-screen bg-green-100 flex items-center justify-center p-4">
+        <div className="text-center">
+          <FaSpinner className="w-12 h-12 text-green-500 animate-spin mx-auto mb-4" />
+          <p className="text-gray-600">Verifying your payment...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Format amount display
+  const formatAmount = (amount) => {
+    if (!amount) return '₦0';
+    // Remove any non-numeric characters except decimal
+    const numericAmount = String(amount).replace(/[^0-9.]/g, '');
+    const num = parseFloat(numericAmount);
+    if (isNaN(num)) return `₦${amount}`;
+    return `₦${num.toLocaleString()}`;
   };
 
   return (
@@ -121,7 +193,7 @@ export default function PaymentSuccessPage() {
           />
           <h1 className="text-3xl font-bold text-gray-900 mt-4">Payment Successful! 🎉</h1>
           <p className="text-gray-600 text-md mt-2">
-            Thank you for your purchase. Your transaction has been completed successfully.
+            Your subscription has been activated successfully.
           </p>
         </div>
 
@@ -135,17 +207,19 @@ export default function PaymentSuccessPage() {
           >
             <h2 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
               <FaCreditCard className="text-green-600" />
-              Transaction Details
+              Subscription Details
             </h2>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between py-2 border-b border-gray-200">
                 <span className="text-gray-600">Plan:</span>
-                <span className="font-semibold text-gray-900">{paymentDetails.plan}</span>
+                <span className="font-semibold text-gray-900">
+                  {paymentDetails.plan} {paymentDetails.planInterval === 'yearly' ? '(Annual)' : '(Monthly)'}
+                </span>
               </div>
               <div className="flex justify-between py-2 border-b border-gray-200">
                 <span className="text-gray-600">Amount Paid:</span>
                 <span className="font-semibold text-green-600 text-lg">
-                  ${paymentDetails.amount}
+                  {formatAmount(paymentDetails.amount)}
                 </span>
               </div>
               <div className="flex justify-between py-2 border-b border-gray-200">
