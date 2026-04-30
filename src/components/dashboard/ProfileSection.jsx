@@ -1,4 +1,4 @@
-// ProfileSection.jsx - FIXED for API compatibility
+// ProfileSection.jsx - FIXED with correct file size validation (1MB max)
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { FaCamera, FaSave, FaTimes, FaCheckCircle, FaTimesCircle, FaSpinner, FaCrown } from 'react-icons/fa';
 import { MdVerified } from 'react-icons/md';
@@ -15,6 +15,77 @@ const getProfileImageUrl = (photoFilename) => {
   return `https://loopmart.ng/uploads/users/${photoFilename}`;
 };
 
+// Compress image before upload
+const compressImage = (file, maxSizeKB = 1024) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target.result;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        
+        // Calculate new dimensions while maintaining aspect ratio
+        const maxWidth = 800;
+        const maxHeight = 800;
+        
+        if (width > height) {
+          if (width > maxWidth) {
+            height = (height * maxWidth) / width;
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxHeight) {
+            width = (width * maxHeight) / height;
+            height = maxHeight;
+          }
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        // Start with 0.8 quality
+        let quality = 0.8;
+        let compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+        
+        // Function to check size and compress more if needed
+        const checkAndCompress = () => {
+          // Convert data URL to blob size estimation (roughly dataURL length * 0.75)
+          const estimatedSizeKB = (compressedDataUrl.length * 0.75) / 1024;
+          
+          if (estimatedSizeKB > maxSizeKB && quality > 0.3) {
+            quality -= 0.1;
+            compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+            checkAndCompress();
+          } else {
+            // Convert data URL to blob
+            fetch(compressedDataUrl)
+              .then(res => res.blob())
+              .then(blob => {
+                const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, '.jpg'), {
+                  type: 'image/jpeg',
+                  lastModified: Date.now()
+                });
+                resolve(compressedFile);
+              })
+              .catch(reject);
+          }
+        };
+        
+        checkAndCompress();
+      };
+      img.onerror = reject;
+    };
+    reader.onerror = reject;
+  });
+};
+
 export default function ProfileSection() {
   const [user, setUser] = useState(null);
   const [originalUser, setOriginalUser] = useState(null);
@@ -27,6 +98,7 @@ export default function ProfileSection() {
   const [isVerified, setIsVerified] = useState(false);
   const [badgeType, setBadgeType] = useState(null);
   const [checkingBadge, setCheckingBadge] = useState(true);
+  const [isCompressing, setIsCompressing] = useState(false);
 
   const fileInputRef = useRef(null);
 
@@ -120,11 +192,10 @@ export default function ProfileSection() {
     return unsubscribe;
   }, [userToProfile, fetchBadgeStatus]);
 
-  // Update profile - FIXED: Only send fields that exist and match API expectations
+  // Update profile
   const updateProfile = async (profileData, imageFile) => {
     const formData = new FormData();
     
-    // Only append fields that have values and match the API expected field names
     if (profileData.username && profileData.username.trim() !== '') {
       formData.append('username', profileData.username);
     }
@@ -145,25 +216,24 @@ export default function ProfileSection() {
       formData.append('business_location', profileData.business_location);
     }
 
-    // Only append photo if there's a file
     if (imageFile) {
       formData.append('photo_url', imageFile);
     }
 
-    // Log the form data for debugging
     console.log('Sending form data:', {
       username: profileData.username,
       phone_number: profileData.phone_number,
       bio: profileData.bio,
       shop_address: profileData.shop_address,
       business_location: profileData.business_location,
-      hasPhoto: !!imageFile
+      hasPhoto: !!imageFile,
+      photoSize: imageFile ? `${(imageFile.size / 1024).toFixed(2)}KB` : 'none'
     });
 
     return await ApiService.post('/api/v1/auth/update', formData, true);
   };
 
-  const handleFileUpload = (e) => {
+  const handleFileUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file || !user) return;
 
@@ -172,20 +242,53 @@ export default function ProfileSection() {
       return;
     }
 
-    if (file.size > 5 * 1024 * 1024) {
-      alert('File size must be less than 5MB');
-      return;
-    }
-
-    setUploadedFile(file);
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (user) {
-        setUser({ ...user, profilePicture: reader.result });
+    // Check original file size
+    const fileSizeKB = file.size / 1024;
+    if (fileSizeKB > 1024) {
+      // Show compression message
+      setIsCompressing(true);
+      setSaveMessage('Compressing image... (this may take a moment)');
+      
+      try {
+        // Compress the image
+        const compressedFile = await compressImage(file, 1024);
+        const compressedSizeKB = compressedFile.size / 1024;
+        console.log(`Original: ${fileSizeKB.toFixed(2)}KB, Compressed: ${compressedSizeKB.toFixed(2)}KB`);
+        
+        setUploadedFile(compressedFile);
+        
+        // Create preview
+        const reader = new FileReader();
+        reader.onload = () => {
+          if (user) {
+            setUser({ ...user, profilePicture: reader.result });
+          }
+        };
+        reader.readAsDataURL(compressedFile);
+        
+        setSaveMessage(`Image compressed from ${fileSizeKB.toFixed(0)}KB to ${compressedSizeKB.toFixed(0)}KB`);
+        setTimeout(() => setSaveMessage(''), 3000);
+      } catch (error) {
+        console.error('Compression error:', error);
+        alert('Failed to compress image. Please try a smaller image.');
+      } finally {
+        setIsCompressing(false);
       }
-    };
-    reader.readAsDataURL(file);
+    } else {
+      // File is already within size limit
+      setUploadedFile(file);
+      
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (user) {
+          setUser({ ...user, profilePicture: reader.result });
+        }
+      };
+      reader.readAsDataURL(file);
+      
+      setSaveMessage(`Image selected (${fileSizeKB.toFixed(0)}KB)`);
+      setTimeout(() => setSaveMessage(''), 2000);
+    }
 
     if (e.target) e.target.value = '';
   };
@@ -196,7 +299,6 @@ export default function ProfileSection() {
     setSaveMessage('');
 
     try {
-      // Prepare data with correct field names matching API
       const profileData = {
         username: user.username || '',
         phone_number: user.phoneNumber || '',
@@ -222,7 +324,6 @@ export default function ProfileSection() {
           setOriginalUser(profile);
         }
       } else {
-        // Handle validation errors
         if (result.errors) {
           const errorMessages = Object.values(result.errors).flat().join(', ');
           setSaveMessage(errorMessages || result.message || 'Failed to save profile');
@@ -365,13 +466,14 @@ export default function ProfileSection() {
             <button 
               onClick={() => setShowProfileImageOptions(true)} 
               className="absolute bottom-0 right-0 bg-black border-2 border-white p-2 rounded-full hover:bg-gray-800 transition-colors shadow-lg"
+              disabled={isCompressing}
             >
               <FaCamera size={12} className="text-white" />
             </button>
           </div>
 
           <div className="flex-1">
-            <p className="text-sm text-gray-600 mb-2">Upload a clear photo to build trust with customers.</p>
+            <p className="text-sm text-gray-600 mb-2">Upload a clear photo to build trust with customers. (Max 1MB)</p>
             <button 
               onClick={() => setShowProfileImageOptions(true)} 
               className="text-black hover:text-yellow-600 text-sm font-medium transition-colors"
@@ -379,7 +481,10 @@ export default function ProfileSection() {
               Change photo
             </button>
             {uploadedFile && (
-              <p className="text-green-600 text-sm mt-1">✅ Image ready for upload: {uploadedFile.name}</p>
+              <p className="text-green-600 text-sm mt-1">✅ Image ready for upload: {(uploadedFile.size / 1024).toFixed(0)}KB</p>
+            )}
+            {isCompressing && (
+              <p className="text-yellow-600 text-sm mt-1">⏳ Compressing image...</p>
             )}
           </div>
         </div>
@@ -397,12 +502,14 @@ export default function ProfileSection() {
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 space-y-6">
         {saveMessage && (
           <div className={`p-3 rounded-lg ${
-            saveMessage.includes('successfully') 
+            saveMessage.includes('successfully') || saveMessage.includes('compressed')
               ? 'bg-green-50 border border-green-200 text-green-700' 
+              : saveMessage.includes('selected')
+              ? 'bg-blue-50 border border-blue-200 text-blue-700'
               : 'bg-red-50 border border-red-200 text-red-700'
           }`}>
             <p className="text-sm font-medium">
-              {saveMessage.includes('successfully') ? '✅ ' : '❌ '}
+              {saveMessage.includes('successfully') ? '✅ ' : saveMessage.includes('compressed') ? '📦 ' : saveMessage.includes('selected') ? '📷 ' : '❌ '}
               {saveMessage}
             </p>
           </div>
@@ -483,7 +590,7 @@ export default function ProfileSection() {
           </div>
           <button 
             onClick={handleSaveProfile} 
-            disabled={!hasUnsavedChanges || isSaving} 
+            disabled={!hasUnsavedChanges || isSaving || isCompressing} 
             className="bg-yellow-500 text-black px-8 py-3 rounded-lg font-semibold hover:bg-yellow-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
           >
             <FaSave />
@@ -557,9 +664,10 @@ export default function ProfileSection() {
               <button 
                 onClick={triggerFileInput} 
                 className="w-full bg-black text-white py-3 rounded-lg hover:bg-gray-800 font-semibold flex items-center justify-center space-x-2 transition-colors"
+                disabled={isCompressing}
               >
                 <FaCamera /> 
-                <span>Upload Photo</span>
+                <span>Upload Photo (Max 1MB)</span>
               </button>
               {user.photo_url && (
                 <button 
@@ -567,10 +675,21 @@ export default function ProfileSection() {
                   className="w-full bg-red-500 text-white py-3 rounded-lg hover:bg-red-600 font-semibold flex items-center justify-center space-x-2 transition-colors"
                 >
                   <FaTimes /> 
-                  <span>Remove Photo</span>
+                  <span rounded-lg hover:bg-red-600 font-semibold flex items-center justify-center space-x-2 transition-colors"
+                >
+                  <FaTimes /> 
+                  <span>Remove>Remove Photo</span>
                 </button>
               )}
             </div>
+            <p className="text-xs text-gray-500 mt-3 text-center">
+              Images larger than 1MB will be Photo</span>
+                </button>
+              )}
+            </div>
+            <p className="text-xs text-gray-500 mt-3 text-center">
+              Images larger than 1MB will be automatically compressed
+            </p>
           </div>
         </div>
       )}
