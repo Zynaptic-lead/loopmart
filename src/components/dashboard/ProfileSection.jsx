@@ -1,4 +1,4 @@
-// ProfileSection.jsx - REWRITTEN WITH PROPER BADGE API INTEGRATION
+// ProfileSection.jsx - FIXED for API compatibility
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { FaCamera, FaSave, FaTimes, FaCheckCircle, FaTimesCircle, FaSpinner, FaCrown } from 'react-icons/fa';
 import { MdVerified } from 'react-icons/md';
@@ -37,9 +37,7 @@ export default function ProfileSection() {
       const response = await ApiService.get('/api/v1/user/badge');
       console.log('Profile - Badge API Response:', response);
       
-      // Check if badge is active - API returns { status: true, message: "Active Badge", badge: {...} }
       if (response && response.status === true && response.badge) {
-        // Check if expired
         const expiryDate = response.badge.expiry_date;
         const isExpired = expiryDate ? new Date(expiryDate) < new Date() : false;
         
@@ -50,12 +48,10 @@ export default function ProfileSection() {
         } else {
           setIsVerified(false);
           setBadgeType(null);
-          console.log('Profile - Badge expired');
         }
       } else {
         setIsVerified(false);
         setBadgeType(null);
-        console.log('Profile - No active badge');
       }
     } catch (error) {
       console.error('Profile - Error fetching badge:', error);
@@ -90,9 +86,7 @@ export default function ProfileSection() {
       
       if (currentUser) {
         console.log('Profile - User from storage:', currentUser);
-        // First fetch badge status
         await fetchBadgeStatus();
-        // Then set user profile
         const profile = userToProfile(currentUser);
         console.log('Profile - Created profile:', profile);
         setUser(profile);
@@ -126,19 +120,45 @@ export default function ProfileSection() {
     return unsubscribe;
   }, [userToProfile, fetchBadgeStatus]);
 
-  // Update profile
+  // Update profile - FIXED: Only send fields that exist and match API expectations
   const updateProfile = async (profileData, imageFile) => {
     const formData = new FormData();
     
-    if (profileData.username) formData.append('username', profileData.username);
-    if (profileData.phone_number) formData.append('phone_number', profileData.phone_number);
-    if (profileData.shop_address) formData.append('shop_address', profileData.shop_address);
-    if (profileData.business_location) formData.append('business_location', profileData.business_location);
-    if (profileData.bio) formData.append('bio', profileData.bio);
+    // Only append fields that have values and match the API expected field names
+    if (profileData.username && profileData.username.trim() !== '') {
+      formData.append('username', profileData.username);
+    }
+    
+    if (profileData.phone_number && profileData.phone_number.trim() !== '') {
+      formData.append('phone_number', profileData.phone_number);
+    }
+    
+    if (profileData.bio && profileData.bio.trim() !== '') {
+      formData.append('bio', profileData.bio);
+    }
+    
+    if (profileData.shop_address && profileData.shop_address.trim() !== '') {
+      formData.append('shop_address', profileData.shop_address);
+    }
+    
+    if (profileData.business_location && profileData.business_location.trim() !== '') {
+      formData.append('business_location', profileData.business_location);
+    }
 
+    // Only append photo if there's a file
     if (imageFile) {
       formData.append('photo_url', imageFile);
     }
+
+    // Log the form data for debugging
+    console.log('Sending form data:', {
+      username: profileData.username,
+      phone_number: profileData.phone_number,
+      bio: profileData.bio,
+      shop_address: profileData.shop_address,
+      business_location: profileData.business_location,
+      hasPhoto: !!imageFile
+    });
 
     return await ApiService.post('/api/v1/auth/update', formData, true);
   };
@@ -176,12 +196,13 @@ export default function ProfileSection() {
     setSaveMessage('');
 
     try {
+      // Prepare data with correct field names matching API
       const profileData = {
-        username: user.username,
-        phone_number: user.phoneNumber,
-        shop_address: user.shopAddress,
-        business_location: user.businessLocation,
-        bio: user.businessDescription
+        username: user.username || '',
+        phone_number: user.phoneNumber || '',
+        shop_address: user.shopAddress || '',
+        business_location: user.businessLocation || '',
+        bio: user.businessDescription || ''
       };
 
       const result = await updateProfile(profileData, uploadedFile || undefined);
@@ -189,13 +210,11 @@ export default function ProfileSection() {
 
       if (result.status) {
         await userService.fetchFreshUserData();
-        // Refresh badge status after profile update
         await fetchBadgeStatus();
         setUploadedFile(null);
         setSaveMessage('Profile saved successfully!');
         setTimeout(() => setSaveMessage(''), 3000);
         
-        // Update original user to match current
         const updatedUser = userService.getUser();
         if (updatedUser) {
           const profile = userToProfile(updatedUser);
@@ -203,11 +222,19 @@ export default function ProfileSection() {
           setOriginalUser(profile);
         }
       } else {
-        setSaveMessage(result.message || 'Failed to save profile');
+        // Handle validation errors
+        if (result.errors) {
+          const errorMessages = Object.values(result.errors).flat().join(', ');
+          setSaveMessage(errorMessages || result.message || 'Failed to save profile');
+        } else {
+          setSaveMessage(result.message || 'Failed to save profile');
+        }
+        setTimeout(() => setSaveMessage(''), 5000);
       }
     } catch (error) {
       console.error('Profile - Error saving:', error);
       setSaveMessage(error.message || 'Error saving profile');
+      setTimeout(() => setSaveMessage(''), 5000);
     } finally {
       setIsSaving(false);
     }
@@ -229,12 +256,12 @@ export default function ProfileSection() {
       
       const currentUser = userService.getUser();
       if (currentUser) {
-        formData.append('username', currentUser.username || '');
-        formData.append('email', currentUser.email || '');
-        formData.append('phone_number', currentUser.phone_number || '');
-        formData.append('shop_address', currentUser.shop_address || '');
-        formData.append('business_location', currentUser.business_location || '');
-        formData.append('bio', currentUser.bio || '');
+        if (currentUser.username) formData.append('username', currentUser.username);
+        if (currentUser.email) formData.append('email', currentUser.email);
+        if (currentUser.phone_number) formData.append('phone_number', currentUser.phone_number);
+        if (currentUser.shop_address) formData.append('shop_address', currentUser.shop_address);
+        if (currentUser.business_location) formData.append('business_location', currentUser.business_location);
+        if (currentUser.bio) formData.append('bio', currentUser.bio);
       }
       
       const result = await ApiService.post('/api/v1/shop/update', formData, true);
@@ -254,6 +281,7 @@ export default function ProfileSection() {
     } catch (error) {
       console.error('Error removing profile picture:', error);
       setSaveMessage('Failed to remove profile picture');
+      setTimeout(() => setSaveMessage(''), 3000);
     } finally {
       setIsSaving(false);
       setShowProfileImageOptions(false);
@@ -464,7 +492,7 @@ export default function ProfileSection() {
         </div>
       </div>
 
-      {/* Verification Status - UPDATED to use badge API */}
+      {/* Verification Status */}
       <div className="mt-6 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center space-x-3">
@@ -479,16 +507,10 @@ export default function ProfileSection() {
               </h3>
               <p className="text-sm text-gray-600">
                 {!checkingBadge && isVerified 
-                  ? `${badgeType === 'yearly' ? '🎉 Annual Premium' : '✓ Monthly'} verified account - trusted by customers.`
+                  ? `${badgeType === 'yearly' ? 'Annual Premium' : 'Monthly'} verified account - trusted by customers.`
                   : 'Verify your account to build trust and unlock premium features.'
                 }
               </p>
-              {!checkingBadge && isVerified && badgeType === 'yearly' && (
-                <div className="flex items-center gap-1 mt-1">
-                  <FaCrown className="text-yellow-500 text-xs" />
-                  <span className="text-xs text-yellow-600 font-medium">Premium Annual Plan Active</span>
-                </div>
-              )}
             </div>
           </div>
           {!checkingBadge && !isVerified && (
