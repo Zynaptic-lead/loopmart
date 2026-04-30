@@ -1,3 +1,4 @@
+// ShopPage.jsx - Fixed banner upload visibility
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -918,7 +919,7 @@ export default function ShopPage() {
 
       <div className="max-w-7xl mx-auto px-4 py-6">
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-          {/* Banner Section */}
+          {/* Banner Section - FIXED: Only show upload button for shop owner */}
           <div className="h-32 md:h-48 lg:h-56 relative border-b border-gray-300">
             {shop.coverImage && shop.coverImage !== '' && !bannerError ? (
               <>
@@ -930,6 +931,7 @@ export default function ShopPage() {
                   onLoad={() => console.log('Banner loaded successfully')}
                 />
                 <div className="absolute inset-0 bg-black bg-opacity-30"></div>
+                {/* Only show camera button for shop owner */}
                 {isOwnShop && (
                   <button className="absolute top-4 right-4 bg-black bg-opacity-50 hover:bg-opacity-70 text-white p-2 md:p-3 rounded-full transition-all">
                     <FaCamera size={16} />
@@ -937,14 +939,26 @@ export default function ShopPage() {
                 )}
               </>
             ) : (
-              <div className="w-full h-full">
+              <div className="w-full h-full relative">
+                {/* Gradient background for empty banner */}
                 <div className="absolute inset-0 bg-gradient-to-r from-blue-500 via-purple-600 to-pink-500"></div>
+                
+                {/* For shop owner - show upload CTA */}
                 {isOwnShop ? (
                   <div className="relative z-10 w-full h-full flex flex-col items-center justify-center text-white p-4">
-                   
-                   
+                    <FaCamera className="text-3xl md:text-4xl mx-auto mb-2" />
+                    <p className="text-sm md:text-base opacity-90 font-medium">
+                      Add a banner image
+                    </p>
+                    <p className="text-xs md:text-sm opacity-60 mt-1">
+                      Recommended: 1584 × 396 pixels
+                    </p>
+                    <button className="mt-3 bg-white bg-opacity-20 hover:bg-opacity-30 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all">
+                      Upload Banner
+                    </button>
                   </div>
                 ) : (
+                  // For visitors - just show shop name
                   <div className="relative z-10 w-full h-full flex flex-col items-center justify-center text-white p-4">
                     <FaStore className="text-3xl md:text-4xl mx-auto mb-2" />
                     <p className="text-sm md:text-base opacity-90 font-medium">
@@ -974,7 +988,9 @@ export default function ShopPage() {
                       onLoad={() => console.log('Profile loaded successfully')}
                     />
                     {isOwnShop && (
-                      
+                      <button className="absolute bottom-1 right-1 bg-black border-2 border-white p-1 md:p-2 rounded-full hover:bg-gray-800 transition-all">
+                        <FaCamera size={12} />
+                      </button>
                     )}
                   </div>
                 ) : (
@@ -1024,7 +1040,7 @@ export default function ShopPage() {
               </div>
             </div>
 
-            {/* Shop Details */}
+            {/* Shop Details - Rest of the code remains the same */}
             <div className="mt-4 text-center md:text-left">
               <div className="flex items-center justify-center md:justify-start space-x-2 mb-1">
                 <h1 className="text-xl md:text-2xl font-bold text-gray-900">{shop.username}</h1>
@@ -1136,7 +1152,7 @@ export default function ShopPage() {
             </div>
           </div>
 
-          {/* Products Section */}
+          {/* Products Section - Rest remains the same */}
           <div className="px-4 md:px-6 pb-4 md:pb-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg md:text-xl font-semibold text-gray-900">
