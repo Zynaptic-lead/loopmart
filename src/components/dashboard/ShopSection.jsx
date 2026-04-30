@@ -1,4 +1,4 @@
-// ShopSection.jsx - COMPLETE WORKING VERSION
+// ShopSection.jsx - COMPLETE REWRITE WITH CORRECT BADGE HANDLING
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -68,9 +68,7 @@ const ShareModal = ({ isOpen, onClose, productId, productTitle }) => {
     try {
       setGeneratingLink(true);
       setError('');
-      
       const response = await ApiService.get(`/api/v1/product/link?productId=${productId}`);
-      
       let shareUrl = '';
       if (response.status && response.data) {
         shareUrl = response.data.url || response.data.link || `https://loopmart.ng/product/${productId}`;
@@ -81,16 +79,13 @@ const ShareModal = ({ isOpen, onClose, productId, productTitle }) => {
       } else {
         shareUrl = `https://loopmart.ng/product/${productId}`;
       }
-      
       if (!shareUrl.startsWith('http')) {
         shareUrl = `https://loopmart.ng${shareUrl.startsWith('/') ? shareUrl : `/${shareUrl}`}`;
       }
-      
       setProductLink(shareUrl);
     } catch (error) {
       console.error('Error generating share link:', error);
-      const fallbackUrl = `https://loopmart.ng/product/${productId}`;
-      setProductLink(fallbackUrl);
+      setProductLink(`https://loopmart.ng/product/${productId}`);
       setError('Using default product URL');
     } finally {
       setGeneratingLink(false);
@@ -98,10 +93,7 @@ const ShareModal = ({ isOpen, onClose, productId, productTitle }) => {
   };
 
   const handleCopyLink = async () => {
-    if (!productLink) {
-      await generateShareLink();
-    }
-    
+    if (!productLink) await generateShareLink();
     try {
       await navigator.clipboard.writeText(productLink);
       setCopied(true);
@@ -119,10 +111,7 @@ const ShareModal = ({ isOpen, onClose, productId, productTitle }) => {
   };
 
   const handleShare = async () => {
-    if (!productLink) {
-      await generateShareLink();
-    }
-    
+    if (!productLink) await generateShareLink();
     if (navigator.share) {
       try {
         await navigator.share({
@@ -139,9 +128,7 @@ const ShareModal = ({ isOpen, onClose, productId, productTitle }) => {
   };
 
   useEffect(() => {
-    if (isOpen) {
-      generateShareLink();
-    }
+    if (isOpen) generateShareLink();
   }, [isOpen, productId]);
 
   if (!isOpen) return null;
@@ -168,40 +155,27 @@ const ShareModal = ({ isOpen, onClose, productId, productTitle }) => {
               <FaTimes size={20} />
             </button>
           </div>
-
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Product: <span className="font-semibold">{productTitle}</span>
               </label>
-              
               {error && (
                 <div className="mb-3 p-2 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-700">
                   {error}
                 </div>
               )}
-              
               <label className="block text-sm font-medium text-gray-700 mb-2">Share Link</label>
               <div className="flex gap-2">
                 <div className="flex-1 flex items-center px-3 py-2 border border-gray-300 rounded-lg bg-gray-50">
                   <FaLink className="text-gray-400 mr-2" size={14} />
-                  <input
-                    type="text"
-                    value={generatingLink ? 'Generating...' : productLink}
-                    readOnly
-                    className="flex-1 bg-transparent outline-none text-sm truncate"
-                  />
+                  <input type="text" value={generatingLink ? 'Generating...' : productLink} readOnly className="flex-1 bg-transparent outline-none text-sm truncate" />
                 </div>
-                <button
-                  onClick={generateShareLink}
-                  disabled={generatingLink}
-                  className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50"
-                >
+                <button onClick={generateShareLink} disabled={generatingLink} className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50">
                   {generatingLink ? <FaSpinner className="animate-spin" /> : <FaLink size={14} />}
                 </button>
               </div>
             </div>
-
             {productLink && (
               <div className="flex gap-2">
                 <button onClick={handleCopyLink} className="flex-1 bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 flex items-center justify-center gap-2">
@@ -212,7 +186,6 @@ const ShareModal = ({ isOpen, onClose, productId, productTitle }) => {
                 </button>
               </div>
             )}
-
             <button onClick={onClose} className="w-full px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
               Close
             </button>
@@ -435,17 +408,9 @@ const CameraCaptureModal = ({ isOpen, onClose, onCapture, title, isCapturing }) 
 // Edit Product Modal
 const EditProductModal = ({ product, isOpen, onClose, onSave }) => {
   const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    category: '',
-    condition: '',
-    actual_price: '',
-    promo_price: '',
-    location: '',
-    quantity: '1',
-    ask_for_price: false,
-    images: [],
-    existing_images: []
+    title: '', description: '', category: '', condition: '',
+    actual_price: '', promo_price: '', location: '', quantity: '1',
+    ask_for_price: false, images: [], existing_images: []
   });
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -469,10 +434,7 @@ const EditProductModal = ({ product, isOpen, onClose, onSave }) => {
     }
   }, [product, isOpen]);
 
-  const handleInputChange = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  };
-
+  const handleInputChange = (field, value) => setFormData(prev => ({ ...prev, [field]: value }));
   const handleImageUpload = (e) => {
     const files = e.target.files;
     if (files) {
@@ -480,7 +442,6 @@ const EditProductModal = ({ product, isOpen, onClose, onSave }) => {
       setFormData(prev => ({ ...prev, images: [...prev.images, ...newImages] }));
     }
   };
-
   const removeImage = (index, type) => {
     if (type === 'existing') {
       setFormData(prev => ({ ...prev, existing_images: prev.existing_images.filter((_, i) => i !== index) }));
@@ -488,9 +449,7 @@ const EditProductModal = ({ product, isOpen, onClose, onSave }) => {
       setFormData(prev => ({ ...prev, images: prev.images.filter((_, i) => i !== index) }));
     }
   };
-
   const triggerFileInput = () => fileInputRef.current?.click();
-
   const handleSubmit = async () => {
     if (!product) return;
     setIsSubmitting(true);
@@ -502,7 +461,6 @@ const EditProductModal = ({ product, isOpen, onClose, onSave }) => {
       setIsSubmitting(false);
     }
   };
-
   const nextStep = () => setCurrentStep(2);
   const prevStep = () => setCurrentStep(1);
 
@@ -526,11 +484,8 @@ const EditProductModal = ({ product, isOpen, onClose, onSave }) => {
         >
           <div className="flex justify-between items-center p-4 md:p-6 border-b border-gray-200">
             <h2 className="text-lg md:text-xl font-semibold text-gray-900">Edit Product</h2>
-            <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full">
-              <FaTimes size={20} />
-            </button>
+            <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full"><FaTimes size={20} /></button>
           </div>
-
           <div className="p-4 md:p-6 overflow-y-auto max-h-[70vh]">
             <div className="flex justify-center mb-6">
               <div className="flex items-center">
@@ -539,57 +494,23 @@ const EditProductModal = ({ product, isOpen, onClose, onSave }) => {
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center ${currentStep === 2 ? 'bg-yellow-500 text-white' : 'bg-gray-200 text-gray-600'}`}>2</div>
               </div>
             </div>
-
             {currentStep === 1 && (
               <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="space-y-4 md:space-y-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Product Title *</label>
-                  <input type="text" value={formData.title} onChange={(e) => handleInputChange('title', e.target.value)} className="w-full px-3 md:px-4 py-2 md:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none transition" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Location *</label>
-                  <select value={formData.location} onChange={(e) => handleInputChange('location', e.target.value)} className="w-full px-3 md:px-4 py-2 md:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none transition">
-                    <option value="">Select location</option>
-                    {NIGERIAN_STATES.map(state => <option key={state} value={state}>{state}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Quantity *</label>
-                  <input type="number" value={formData.quantity} onChange={(e) => handleInputChange('quantity', e.target.value)} min="1" className="w-full px-3 md:px-4 py-2 md:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none transition" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Description *</label>
-                  <textarea value={formData.description} onChange={(e) => handleInputChange('description', e.target.value)} rows={3} className="w-full px-3 md:px-4 py-2 md:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none transition resize-none" placeholder="Describe your product" />
-                </div>
+                <div><label className="block text-sm font-medium text-gray-700 mb-2">Product Title *</label><input type="text" value={formData.title} onChange={(e) => handleInputChange('title', e.target.value)} className="w-full px-3 md:px-4 py-2 md:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none transition" /></div>
+                <div><label className="block text-sm font-medium text-gray-700 mb-2">Location *</label><select value={formData.location} onChange={(e) => handleInputChange('location', e.target.value)} className="w-full px-3 md:px-4 py-2 md:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none transition"><option value="">Select location</option>{NIGERIAN_STATES.map(state => <option key={state} value={state}>{state}</option>)}</select></div>
+                <div><label className="block text-sm font-medium text-gray-700 mb-2">Quantity *</label><input type="number" value={formData.quantity} onChange={(e) => handleInputChange('quantity', e.target.value)} min="1" className="w-full px-3 md:px-4 py-2 md:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none transition" /></div>
+                <div><label className="block text-sm font-medium text-gray-700 mb-2">Description *</label><textarea value={formData.description} onChange={(e) => handleInputChange('description', e.target.value)} rows={3} className="w-full px-3 md:px-4 py-2 md:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none transition resize-none" placeholder="Describe your product" /></div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Category *</label>
-                    <select value={formData.category} onChange={(e) => handleInputChange('category', e.target.value)} className="w-full px-3 md:px-4 py-2 md:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none transition">
-                      <option value="">Select category</option>
-                      {CATEGORIES.map(category => <option key={category.id} value={category.id}>{category.name}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Condition *</label>
-                    <select value={formData.condition} onChange={(e) => handleInputChange('condition', e.target.value)} className="w-full px-3 md:px-4 py-2 md:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none transition">
-                      <option value="">Select condition</option>
-                      {CONDITIONS.map(condition => <option key={condition.value} value={condition.value}>{condition.label}</option>)}
-                    </select>
-                  </div>
+                  <div><label className="block text-sm font-medium text-gray-700 mb-2">Category *</label><select value={formData.category} onChange={(e) => handleInputChange('category', e.target.value)} className="w-full px-3 md:px-4 py-2 md:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none transition"><option value="">Select category</option>{CATEGORIES.map(category => <option key={category.id} value={category.id}>{category.name}</option>)}</select></div>
+                  <div><label className="block text-sm font-medium text-gray-700 mb-2">Condition *</label><select value={formData.condition} onChange={(e) => handleInputChange('condition', e.target.value)} className="w-full px-3 md:px-4 py-2 md:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none transition"><option value="">Select condition</option>{CONDITIONS.map(condition => <option key={condition.value} value={condition.value}>{condition.label}</option>)}</select></div>
                 </div>
-                <div className="flex justify-end pt-4">
-                  <button onClick={nextStep} className="bg-yellow-500 text-white px-4 md:px-6 py-2 md:py-3 rounded-lg hover:bg-yellow-600 font-semibold">Continue to Pricing & Images</button>
-                </div>
+                <div className="flex justify-end pt-4"><button onClick={nextStep} className="bg-yellow-500 text-white px-4 md:px-6 py-2 md:py-3 rounded-lg hover:bg-yellow-600 font-semibold">Continue to Pricing & Images</button></div>
               </motion.div>
             )}
-
             {currentStep === 2 && (
               <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-4 md:space-y-6">
                 <div className="flex items-center justify-between p-3 md:p-4 border border-gray-200 rounded-lg bg-gray-50">
-                  <div>
-                    <h3 className="font-medium text-gray-800 text-sm md:text-base">Ask for Price</h3>
-                    <p className="text-xs md:text-sm text-gray-600">Let buyers contact you for pricing</p>
-                  </div>
+                  <div><h3 className="font-medium text-gray-800 text-sm md:text-base">Ask for Price</h3><p className="text-xs md:text-sm text-gray-600">Let buyers contact you for pricing</p></div>
                   <label className="inline-flex items-center cursor-pointer">
                     <input type="checkbox" checked={formData.ask_for_price} onChange={(e) => handleInputChange('ask_for_price', e.target.checked)} className="sr-only peer" />
                     <div className="relative w-10 md:w-12 h-5 md:h-6 bg-gray-300 peer-focus:outline-none rounded-full peer transition-all duration-300 peer-checked:bg-yellow-500">
@@ -597,59 +518,23 @@ const EditProductModal = ({ product, isOpen, onClose, onSave }) => {
                     </div>
                   </label>
                 </div>
-
                 {!formData.ask_for_price && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Actual Price (₦) *</label>
-                      <div className="relative">
-                        <FaDollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={14} />
-                        <input type="number" value={formData.actual_price} onChange={(e) => handleInputChange('actual_price', e.target.value)} className="w-full pl-9 pr-4 py-2 md:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none transition" placeholder="0.00" />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Promo Price (₦)</label>
-                      <div className="relative">
-                        <FaTag className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={14} />
-                        <input type="number" value={formData.promo_price} onChange={(e) => handleInputChange('promo_price', e.target.value)} className="w-full pl-9 pr-4 py-2 md:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none transition" placeholder="0.00" />
-                      </div>
-                    </div>
+                    <div><label className="block text-sm font-medium text-gray-700 mb-2">Actual Price (₦) *</label><div className="relative"><FaDollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={14} /><input type="number" value={formData.actual_price} onChange={(e) => handleInputChange('actual_price', e.target.value)} className="w-full pl-9 pr-4 py-2 md:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none transition" placeholder="0.00" /></div></div>
+                    <div><label className="block text-sm font-medium text-gray-700 mb-2">Promo Price (₦)</label><div className="relative"><FaTag className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={14} /><input type="number" value={formData.promo_price} onChange={(e) => handleInputChange('promo_price', e.target.value)} className="w-full pl-9 pr-4 py-2 md:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none transition" placeholder="0.00" /></div></div>
                   </div>
                 )}
-
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-3">Upload Images (You can upload multiple images)</label>
-                  
                   {formData.existing_images.length > 0 && (
-                    <div className="mb-4">
-                      <p className="text-sm text-gray-600 mb-2">Current Images:</p>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-                        {formData.existing_images.map((image, index) => (
-                          <div key={index} className="relative group">
-                            <img src={image} alt={`Product ${index + 1}`} className="w-full h-20 md:h-24 object-cover rounded-lg border" />
-                            <button type="button" onClick={() => removeImage(index, 'existing')} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 md:w-6 md:h-6 flex items-center justify-center text-xs hover:bg-red-600">×</button>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
+                    <div className="mb-4"><p className="text-sm text-gray-600 mb-2">Current Images:</p><div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">{formData.existing_images.map((image, index) => (<div key={index} className="relative group"><img src={image} alt={`Product ${index + 1}`} className="w-full h-20 md:h-24 object-cover rounded-lg border" /><button type="button" onClick={() => removeImage(index, 'existing')} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 md:w-6 md:h-6 flex items-center justify-center text-xs hover:bg-red-600">×</button></div>))}</div></div>
                   )}
-
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-4">
-                    {formData.images.map((image, index) => (
-                      <div key={index} className="relative group">
-                        <img src={URL.createObjectURL(image)} alt={`New ${index + 1}`} className="w-full h-20 md:h-24 object-cover rounded-lg border" />
-                        <button type="button" onClick={() => removeImage(index, 'new')} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 md:w-6 md:h-6 flex items-center justify-center text-xs hover:bg-red-600">×</button>
-                      </div>
-                    ))}
-                    {formData.images.length < 5 && (
-                      <button type="button" onClick={triggerFileInput} className="w-full h-20 md:h-24 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center text-gray-400 hover:text-gray-600 hover:border-gray-400 transition-colors">
-                        <FaUpload size={20} /><span className="text-xs mt-1">Upload Image</span>
-                      </button>
-                    )}
+                    {formData.images.map((image, index) => (<div key={index} className="relative group"><img src={URL.createObjectURL(image)} alt={`New ${index + 1}`} className="w-full h-20 md:h-24 object-cover rounded-lg border" /><button type="button" onClick={() => removeImage(index, 'new')} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 md:w-6 md:h-6 flex items-center justify-center text-xs hover:bg-red-600">×</button></div>))}
+                    {formData.images.length < 5 && (<button type="button" onClick={triggerFileInput} className="w-full h-20 md:h-24 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center text-gray-400 hover:text-gray-600 hover:border-gray-400 transition-colors"><FaUpload size={20} /><span className="text-xs mt-1">Upload Image</span></button>)}
                   </div>
                   <input ref={fileInputRef} type="file" multiple accept="image/*" onChange={handleImageUpload} className="hidden" />
                 </div>
-
                 <div className="flex justify-between pt-4">
                   <button onClick={prevStep} className="px-4 md:px-6 py-2 md:py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">Back</button>
                   <button onClick={handleSubmit} disabled={isSubmitting} className="bg-green-500 text-white px-4 md:px-6 py-2 md:py-3 rounded-lg hover:bg-green-600 font-semibold flex items-center gap-2 disabled:opacity-50">
@@ -682,7 +567,8 @@ export default function ShopSection() {
   const [showBannerModal, setShowBannerModal] = useState(false);
   const [showCameraModal, setShowCameraModal] = useState(false);
   const [currentImageType, setCurrentImageType] = useState('banner');
-  const [badgeStatus, setBadgeStatus] = useState({ isVerified: false, badgeType: null });
+  const [isVerified, setIsVerified] = useState(false);
+  const [badgeType, setBadgeType] = useState(null);
   const [checkingBadge, setCheckingBadge] = useState(true);
   const fileInputRef = useRef(null);
 
@@ -699,70 +585,94 @@ export default function ShopSection() {
     try {
       setCheckingBadge(true);
       const response = await ApiService.get('/api/v1/user/badge');
+      console.log('Badge API Response:', response);
       
-      if (response && response.status === true) {
-        setBadgeStatus({
-          isVerified: true,
-          badgeType: response.badge?.badge_type || response.badge_type || 'monthly',
-        });
+      // Check if badge is active - API returns { status: true, message: "Active Badge", badge: {...} }
+      if (response && response.status === true && response.badge) {
+        // Check if expired
+        const expiryDate = response.badge.expiry_date;
+        const isExpired = expiryDate ? new Date(expiryDate) < new Date() : false;
+        
+        if (!isExpired) {
+          setIsVerified(true);
+          setBadgeType(response.badge.badge_type || 'monthly');
+          console.log('User is verified with badge type:', response.badge.badge_type);
+        } else {
+          setIsVerified(false);
+          setBadgeType(null);
+          console.log('Badge expired');
+        }
       } else {
-        setBadgeStatus({ isVerified: false, badgeType: null });
+        setIsVerified(false);
+        setBadgeType(null);
+        console.log('No active badge');
       }
     } catch (error) {
       console.error('Error fetching badge:', error);
-      setBadgeStatus({ isVerified: false, badgeType: null });
+      setIsVerified(false);
+      setBadgeType(null);
     } finally {
       setCheckingBadge(false);
     }
   }, []);
 
   // Convert user data to profile
-  const userToProfile = useCallback((userData, badgeData) => ({
+  const userToProfile = useCallback((userData) => ({
     id: userData.id || 0,
     name: userData.name || userData.username || userData.email?.split('@')[0] || 'User',
     email: userData.email || '',
     username: userData.username || userData.name || userData.email?.split('@')[0] || 'user',
-    isVerified: badgeData.isVerified,
-    badgeType: badgeData.badgeType,
-    profilePicture: userData.photo_url ? getProfileUrl(userData.photo_url) : null,
-    coverImage: userData.banner ? getBannerUrl(userData.banner) : null,
-    photo_url: userData.photo_url,
-    banner: userData.banner,
     phoneNumber: userData.phone_number || '',
     shopAddress: userData.shop_address || '',
     businessLocation: userData.business_location || '',
-    businessDescription: userData.bio || ''
+    businessDescription: userData.bio || '',
+    profilePicture: userData.photo_url ? getProfileUrl(userData.photo_url) : null,
+    coverImage: userData.banner ? getBannerUrl(userData.banner) : null,
+    photo_url: userData.photo_url,
+    banner: userData.banner
   }), []);
 
   // Load user and badge on mount
   useEffect(() => {
-    const loadUser = async () => {
+    const loadUserAndBadge = async () => {
       const currentUser = userService.getUser();
+      console.log('Current user from storage:', currentUser);
+      
       if (currentUser) {
+        // First fetch badge status
         await fetchBadgeStatus();
-        const profile = userToProfile(currentUser, badgeStatus);
-        setUser(profile);
-      }
-    };
-    loadUser();
-
-    const unsubscribe = userService.subscribe(async (currentUser) => {
-      if (currentUser) {
-        await fetchBadgeStatus();
-        const profile = userToProfile(currentUser, badgeStatus);
+        // Then set user profile
+        const profile = userToProfile(currentUser);
+        console.log('Created profile:', profile);
         setUser(profile);
       } else {
         setUser(null);
+      }
+    };
+    
+    loadUserAndBadge();
+
+    const unsubscribe = userService.subscribe(async (currentUser) => {
+      console.log('User service subscription triggered:', currentUser);
+      if (currentUser) {
+        await fetchBadgeStatus();
+        const profile = userToProfile(currentUser);
+        setUser(profile);
+      } else {
+        setUser(null);
+        setIsVerified(false);
+        setBadgeType(null);
       }
     });
 
     return unsubscribe;
   }, [userToProfile, fetchBadgeStatus]);
 
-  // Fetch user products - FIXED
+  // Fetch user products
   const fetchUserProducts = useCallback(async () => {
     try {
       const response = await ApiService.get('/api/v1/user/products');
+      console.log('Products response:', response);
       
       let productsArray = [];
       if (response && response.status === true && response.data) {
@@ -860,7 +770,7 @@ export default function ShopSection() {
         await userService.fetchFreshUserData();
         const updatedUser = userService.getUser();
         if (updatedUser) {
-          const profile = userToProfile(updatedUser, badgeStatus);
+          const profile = userToProfile(updatedUser);
           setUser(profile);
         }
       }
@@ -900,7 +810,7 @@ export default function ShopSection() {
         await userService.fetchFreshUserData();
         const updatedUser = userService.getUser();
         if (updatedUser) {
-          const profile = userToProfile(updatedUser, badgeStatus);
+          const profile = userToProfile(updatedUser);
           setUser(profile);
         }
       }
@@ -957,6 +867,7 @@ export default function ShopSection() {
   };
 
   const handleAddProduct = () => navigate('/start-selling');
+  
   const refreshProducts = async () => {
     setLoading(true);
     const userProducts = await fetchUserProducts();
@@ -966,6 +877,7 @@ export default function ShopSection() {
 
   const handleShareProduct = (product) => setShareModal({ show: true, product });
   const handleEditProduct = (product) => setEditModal({ show: true, product });
+  
   const handleSaveProduct = async (productId, data) => {
     try {
       setIsSaving(true);
@@ -1034,11 +946,6 @@ export default function ShopSection() {
   const handleVerificationModalClose = async () => {
     setIsVerificationModalOpen(false);
     await fetchBadgeStatus();
-    const currentUser = userService.getUser();
-    if (currentUser) {
-      const profile = userToProfile(currentUser, badgeStatus);
-      setUser(profile);
-    }
   };
 
   if (!user) {
@@ -1141,14 +1048,14 @@ export default function ShopSection() {
             </div>
 
             <div className="mt-4 md:mt-0 md:ml-auto flex flex-col sm:flex-row gap-2">
-              {!checkingBadge && !user.isVerified && (
+              {!checkingBadge && !isVerified && (
                 <button onClick={() => setIsVerificationModalOpen(true)} className="bg-black text-white px-4 py-2 rounded-lg font-semibold flex items-center gap-2 hover:bg-gray-800">
                   <FaShieldAlt /> Get Verified
                 </button>
               )}
-              {user.isVerified && (
+              {isVerified && (
                 <div className="bg-green-100 text-green-800 px-4 py-2 rounded-lg font-semibold flex items-center gap-2">
-                  <FaCrown className="text-yellow-500" /> Verified {user.badgeType === 'yearly' ? 'Annual' : 'Monthly'} Seller
+                  <FaCrown className="text-yellow-500" /> Verified {badgeType === 'yearly' ? 'Annual' : 'Monthly'} Seller
                 </div>
               )}
               <button onClick={handleAddProduct} className="bg-yellow-500 text-white px-4 py-2 rounded-lg font-semibold flex items-center gap-2 hover:bg-yellow-600">
@@ -1164,8 +1071,8 @@ export default function ShopSection() {
               {user.phoneNumber && <span className="flex items-center gap-1"><FaPhone size={12} /> {user.phoneNumber}</span>}
               {user.businessLocation && <span className="flex items-center gap-1"><FaMapMarkerAlt size={12} /> {user.businessLocation}</span>}
             </div>
-            <span className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${user.isVerified ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-              {user.isVerified ? '✓ Verified Seller' : '✗ Unverified Seller'}
+            <span className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${isVerified ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+              {isVerified ? '✓ Verified Seller' : '✗ Unverified Seller'}
             </span>
           </div>
         </div>
