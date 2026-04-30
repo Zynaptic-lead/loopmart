@@ -932,9 +932,7 @@ export default function ShopPage() {
                 />
                 <div className="absolute inset-0 bg-black bg-opacity-30"></div>
                 {isOwnShop && (
-                  <button className="absolute top-4 right-4 bg-black bg-opacity-50 hover:bg-opacity-70 text-white p-2 md:p-3 rounded-full transition-all">
-                    <FaCamera size={16} />
-                  </button>
+                  
                 )}
               </>
             ) : (
@@ -977,9 +975,7 @@ export default function ShopPage() {
                   <div className="w-24 h-24 md:w-32 md:h-32 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full border-4 border-white flex items-center justify-center text-white text-xl md:text-3xl font-bold shadow-lg">
                     {getInitials(shop.name || shop.username || shop.email)}
                     {isOwnShop && (
-                      <button className="absolute bottom-1 right-1 bg-white bg-opacity-20 hover:bg-opacity-30 text-white p-1 md:p-2 rounded-full transition-all">
-                        <FaCamera size={12} />
-                      </button>
+                     
                     )}
                   </div>
                 )}
