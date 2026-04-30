@@ -946,13 +946,7 @@ export default function ShopPage() {
                 {/* For shop owner - show upload CTA */}
                 {isOwnShop ? (
                   <div className="relative z-10 w-full h-full flex flex-col items-center justify-center text-white p-4">
-                    <FaCamera className="text-3xl md:text-4xl mx-auto mb-2" />
-                    <p className="text-sm md:text-base opacity-90 font-medium">
-                      Add a banner image
-                    </p>
-                    <p className="text-xs md:text-sm opacity-60 mt-1">
-                      Recommended: 1584 × 396 pixels
-                    </p>
+
                     <button className="mt-3 bg-white bg-opacity-20 hover:bg-opacity-30 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all">
                       Upload Banner
                     </button>
