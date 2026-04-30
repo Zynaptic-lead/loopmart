@@ -1,17 +1,17 @@
-// src/components/VerificationModal.jsx - COMPLETE WORKING VERSION WITH FLAT COLORS & RESPONSIVE
+// src/components/VerificationModal.jsx - COMPLETE REWRITTEN VERSION
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { 
   FaCheck, FaShieldAlt, FaArrowRight, FaArrowLeft, FaTimes, 
   FaUser, FaEnvelope, FaPhone, FaMapMarkerAlt, FaIdCard,
   FaVenusMars, FaGlobe, FaCrown, FaStar,
   FaFileAlt, FaCamera, FaCreditCard, FaSpinner
 } from 'react-icons/fa';
-import { VscPass } from "react-icons/vsc";
 import { IoMdCheckmarkCircleOutline } from "react-icons/io";
 import { userService } from '../../services/userService';
 
-// API Service using env variable - EXACTLY AS YOUR ORIGINAL WORKING VERSION
+// API Service
 const ApiService = {
   baseURL: import.meta.env.VITE_API_URL || 'https://loopmart.ng/api',
 
@@ -40,13 +40,10 @@ const ApiService = {
     }
 
     try {
-      // Remove any duplicate /api in the endpoint
       const cleanEndpoint = endpoint.startsWith('/api') ? endpoint : `/api${endpoint}`;
       const url = `${this.baseURL.replace('/api', '')}${cleanEndpoint}`;
       
       console.log('🔗 Fetching:', url);
-      console.log('🔑 Token exists:', !!token);
-      console.log('📤 Method:', method);
       
       const response = await fetch(url, {
         method,
@@ -55,10 +52,7 @@ const ApiService = {
         body,
       });
       
-      console.log('📨 Response status:', response.status);
-      
       const responseText = await response.text();
-      console.log('📨 Response text:', responseText);
       
       if (response.status === 401) {
         throw new Error('Session expired. Please log in again.');
@@ -68,15 +62,9 @@ const ApiService = {
         let errorMessage = `Request failed: ${response.status}`;
         try {
           const errorJson = JSON.parse(responseText);
-          errorMessage += ` - ${errorJson.message || 'Unknown error'}`;
-          if (errorJson.errors) {
-            const errorMessages = Object.entries(errorJson.errors)
-              .map(([field, errors]) => `${field}: ${Array.isArray(errors) ? errors.join(', ') : errors}`)
-              .join('; ');
-            errorMessage += ` - ${errorMessages}`;
-          }
+          errorMessage = errorJson.message || errorMessage;
         } catch {
-          errorMessage += ` - ${responseText}`;
+          errorMessage = responseText || errorMessage;
         }
         throw new Error(errorMessage);
       }
@@ -94,12 +82,12 @@ const ApiService = {
 };
 
 export default function VerificationModal({ isOpen, onClose, user }) {
+  const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
-  const [paymentData, setPaymentData] = useState(null);
   
   const [formData, setFormData] = useState({
     name: user?.name || user?.username || '',
@@ -148,12 +136,6 @@ export default function VerificationModal({ isOpen, onClose, user }) {
     const formDataToSend = new FormData();
     formDataToSend.append('nin_file', formData.ninFile);
 
-    console.log('📤 Sending National ID Card:', {
-      fileName: formData.ninFile.name,
-      fileSize: formData.ninFile.size,
-      fileType: formData.ninFile.type
-    });
-
     return await apiRequest('/v1/verify/nin', formDataToSend);
   };
 
@@ -167,12 +149,6 @@ export default function VerificationModal({ isOpen, onClose, user }) {
       canvasImage: formData.capturedImage
     };
 
-    console.log('📤 Sending face image:', {
-      dataType: 'data_url',
-      length: formData.capturedImage.length,
-      isBase64: true
-    });
-
     return await apiRequest('/v1/verify/image', requestData);
   };
 
@@ -185,18 +161,27 @@ export default function VerificationModal({ isOpen, onClose, user }) {
     const badgeFormData = new FormData();
     badgeFormData.append('badge_type', selectedPlan);
 
-    console.log('📤 Sending badge type:', { badge_type: selectedPlan });
-    
     return await apiRequest('/v1/verify/badge', badgeFormData);
   };
 
-  // Step 6: Initialize payment
+  // Step 6: Initialize payment and redirect to Paystack
   const initializePayment = async () => {
     if (!selectedPlan) {
       throw new Error('No plan selected');
     }
 
     console.log('💰 Initializing payment for plan:', selectedPlan);
+    
+    // Store verification data before payment
+    const pendingData = {
+      plan: selectedPlan,
+      name: formData.name,
+      email: formData.email,
+      planAmount: selectedPlan === 'monthly' ? 2500 : 20000,
+      timestamp: new Date().toISOString(),
+      status: 'pending_payment'
+    };
+    localStorage.setItem('pending_verification', JSON.stringify(pendingData));
     
     return await apiRequest(`/v1/payment/init?badge_type=${selectedPlan}`, null, 'GET');
   };
@@ -289,25 +274,23 @@ export default function VerificationModal({ isOpen, onClose, user }) {
           const paystackUrl = paymentResponse.paystack_url || paymentResponse.data?.authorization_url;
           
           if (paymentResponse.status && paystackUrl) {
-            const paymentData = {
-              authorization_url: paystackUrl,
-              reference: paymentResponse.data?.reference || new Date().getTime().toString()
-            };
+            // Store payment reference
+            const reference = paymentResponse.data?.reference || `VERIFY_${Date.now()}`;
+            localStorage.setItem('verification_payment_ref', reference);
             
-            setPaymentData(paymentData);
-            setSuccessMessage('Payment link generated! Click "Pay Now" to complete.');
+            setSuccessMessage('Redirecting to Paystack for secure payment...');
             
-            console.log('🔗 Paystack URL:', paystackUrl);
-            
-            nextStep();
+            // Small delay to show success message before redirect
+            setTimeout(() => {
+              window.location.href = paystackUrl;
+            }, 1000);
           } else {
             console.error('❌ Payment initialization failed:', paymentResponse);
             throw new Error(paymentResponse.message || 'Failed to generate payment link. Please try again.');
           }
           break;
 
-        case 7:
-          // Payment step - handled by button click
+        default:
           break;
       }
     } catch (error) {
@@ -319,20 +302,12 @@ export default function VerificationModal({ isOpen, onClose, user }) {
   };
 
   const nextStep = () => {
-    setCurrentStep(prev => Math.min(prev + 1, 7));
+    setCurrentStep(prev => Math.min(prev + 1, 6)); // Only go to step 6 (payment)
     setError(null);
     setSuccessMessage(null);
   };
 
   const prevStep = () => setCurrentStep(prev => Math.max(prev - 1, 1));
-
-  // Handle Paystack payment
-  const handlePaystackPayment = () => {
-    if (paymentData?.authorization_url) {
-      window.open(paymentData.authorization_url, '_blank', 'noopener,noreferrer');
-      setSuccessMessage('Opening Paystack for secure payment...');
-    }
-  };
 
   // Reset form when modal closes
   useEffect(() => {
@@ -342,7 +317,6 @@ export default function VerificationModal({ isOpen, onClose, user }) {
       setIsProcessing(false);
       setError(null);
       setSuccessMessage(null);
-      setPaymentData(null);
       setFormData({
         name: user?.name || user?.username || '',
         email: user?.email || '',
@@ -495,7 +469,6 @@ export default function VerificationModal({ isOpen, onClose, user }) {
 
   if (!isOpen) return null;
 
-  // FULL JSX WITH ONLY STYLING CHANGES (flat colors, responsive classes)
   return (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-2 sm:p-4 backdrop-blur-sm">
       <div className="bg-white rounded-xl sm:rounded-2xl lg:rounded-3xl w-full max-w-4xl max-h-[95vh] sm:max-h-[90vh] overflow-hidden shadow-2xl flex flex-col border border-gray-200">
@@ -507,7 +480,7 @@ export default function VerificationModal({ isOpen, onClose, user }) {
             </div>
             <div>
               <h2 className="text-base sm:text-xl lg:text-2xl font-bold text-gray-900">Identity Verification</h2>
-              <p className="text-xs sm:text-sm text-gray-600">Step {currentStep} of 7 • Complete your verification</p>
+              <p className="text-xs sm:text-sm text-gray-600">Step {currentStep} of 6 • Complete your verification</p>
             </div>
           </div>
           <button
@@ -525,7 +498,7 @@ export default function VerificationModal({ isOpen, onClose, user }) {
             <motion.div 
               className="bg-black h-1.5 sm:h-2 rounded-full"
               initial={{ width: 0 }}
-              animate={{ width: `${(currentStep / 7) * 100}%` }}
+              animate={{ width: `${(currentStep / 6) * 100}%` }}
               transition={{ duration: 0.5, ease: "easeOut" }}
             />
           </div>
@@ -602,7 +575,6 @@ export default function VerificationModal({ isOpen, onClose, user }) {
                   </p>
                 </div>
 
-                {/* Continue Button */}
                 <div className="flex justify-center pt-2 sm:pt-4">
                   <button
                     onClick={handleNextStep}
@@ -772,7 +744,7 @@ export default function VerificationModal({ isOpen, onClose, user }) {
                   <p className="text-sm sm:text-base text-gray-600">Upload a clear photo of your National ID Card</p>
                 </div>
 
-                <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 sm:p-6">
+                <div className="bg-gray-50 rounded-xl p-4 sm:p-6 border border-gray-200">
                   <div className="text-center mb-4 sm:mb-6">
                     <div className="w-16 h-16 sm:w-20 sm:h-20 bg-yellow-100 rounded-2xl flex items-center justify-center mx-auto mb-3 sm:mb-4">
                       <FaIdCard className="text-yellow-500 text-2xl sm:text-3xl" />
@@ -1084,7 +1056,7 @@ export default function VerificationModal({ isOpen, onClose, user }) {
               </motion.div>
             )}
 
-            {/* Step 6: Payment Link Generation */}
+            {/* Step 6: Payment Processing */}
             {currentStep === 6 && (
               <motion.div
                 key="step6"
@@ -1094,122 +1066,80 @@ export default function VerificationModal({ isOpen, onClose, user }) {
                 className="space-y-4 sm:space-y-6"
               >
                 <div className="text-center">
-                  <h3 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-2 sm:mb-3">Payment Link Generated</h3>
-                  <p className="text-sm sm:text-base text-gray-600">Your secure payment link is ready</p>
+                  <h3 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-2 sm:mb-3">Complete Payment</h3>
+                  <p className="text-sm sm:text-base text-gray-600">Review your order and proceed to payment</p>
                 </div>
 
                 <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 sm:p-6">
-                  <div className="text-center">
-                    <div className="w-12 h-12 sm:w-16 sm:h-16 bg-yellow-100 rounded-xl flex items-center justify-center mx-auto mb-3 sm:mb-4">
-                      <FaCreditCard className="text-yellow-500 text-xl sm:text-2xl" />
+                  <div className="text-center mb-6">
+                    <div className="w-16 h-16 sm:w-20 sm:h-20 bg-yellow-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                      <FaCreditCard className="text-yellow-500 text-3xl sm:text-4xl" />
                     </div>
-                    
-                    <div className="mb-4 sm:mb-6">
-                      <div className="text-2xl sm:text-4xl font-bold text-gray-900 mb-1 sm:mb-2">
-                        ₦{selectedPlan === 'monthly' ? '2,500' : '20,000'}
-                      </div>
-                      <div className="text-gray-600 text-sm sm:text-base">
-                        {selectedPlan === 'monthly' ? 'Monthly Verification Plan' : 'Annual Verification Plan'}
-                      </div>
-                      {selectedPlan === 'yearly' && (
-                        <div className="text-green-600 text-xs sm:text-sm font-semibold mt-1 sm:mt-2">
-                          Save ₦10,000 with annual plan!
-                        </div>
-                      )}
+                    <div className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">
+                      ₦{selectedPlan === 'monthly' ? '2,500' : '20,000'}
                     </div>
+                    <div className="text-gray-600">
+                      {selectedPlan === 'monthly' ? 'Monthly Verification Plan' : 'Annual Verification Plan'}
+                    </div>
+                    {selectedPlan === 'yearly' && (
+                      <div className="text-green-600 text-sm font-semibold mt-2">
+                        Save ₦10,000 with annual plan!
+                      </div>
+                    )}
+                  </div>
 
-                    <div className="bg-white border border-gray-200 rounded-lg p-3 sm:p-4 mb-4">
-                      <div className="space-y-2">
-                        <div className="flex justify-between items-center text-xs sm:text-sm">
-                          <span className="text-gray-600">Email:</span>
-                          <span className="font-semibold truncate ml-2">{formData.email}</span>
-                        </div>
-                        <div className="flex justify-between items-center text-xs sm:text-sm">
-                          <span className="text-gray-600">Name:</span>
-                          <span className="font-semibold truncate ml-2">{formData.name}</span>
-                        </div>
-                        <div className="flex justify-between items-center text-xs sm:text-sm">
-                          <span className="text-gray-600">Plan:</span>
-                          <span className="font-semibold capitalize">{selectedPlan}</span>
-                        </div>
-                      </div>
+                  <div className="bg-white rounded-xl p-4 mb-6 space-y-3 text-sm">
+                    <div className="flex justify-between py-2 border-b border-gray-100">
+                      <span className="text-gray-600">Name:</span>
+                      <span className="font-semibold text-gray-900">{formData.name}</span>
                     </div>
-
-                    <div className="text-center text-xs text-gray-500">
-                      <p>Click "Continue to Payment" to proceed to Paystack for secure payment</p>
-                      <p className="text-xs mt-1">Your payment information is encrypted and secure</p>
+                    <div className="flex justify-between py-2 border-b border-gray-100">
+                      <span className="text-gray-600">Email:</span>
+                      <span className="font-semibold text-gray-900">{formData.email}</span>
+                    </div>
+                    <div className="flex justify-between py-2 border-b border-gray-100">
+                      <span className="text-gray-600">Phone:</span>
+                      <span className="font-semibold text-gray-900">{formData.phone}</span>
+                    </div>
+                    <div className="flex justify-between py-2">
+                      <span className="text-gray-600">Plan:</span>
+                      <span className="font-semibold text-gray-900 capitalize">{selectedPlan}</span>
                     </div>
                   </div>
-                </div>
-              </motion.div>
-            )}
 
-            {/* Step 7: Paystack Payment */}
-            {currentStep === 7 && (
-              <motion.div
-                key="step7"
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                className="text-center space-y-4 sm:space-y-6"
-              >
-                <motion.div
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ type: "spring", stiffness: 200, damping: 15 }}
-                  className="w-20 h-20 sm:w-24 sm:h-24 bg-black rounded-2xl flex items-center justify-center mx-auto shadow"
-                >
-                  <FaCreditCard className="text-white text-3xl sm:text-4xl" />
-                </motion.div>
-                
-                <div className="space-y-3 sm:space-y-4">
-                  <h3 className="text-xl sm:text-3xl font-bold text-gray-900">
-                    Complete Payment
-                  </h3>
-                  
-                  <p className="text-gray-600 text-sm sm:text-base max-w-md mx-auto">
-                    Click the button below to complete your payment securely through Paystack
+                  <button
+                    onClick={handleNextStep}
+                    disabled={isProcessing}
+                    className="w-full py-4 bg-green-500 hover:bg-green-600 text-white rounded-xl transition-all duration-300 font-semibold text-lg shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {isProcessing ? (
+                      <>
+                        <FaSpinner className="animate-spin" />
+                        <span>Processing...</span>
+                      </>
+                    ) : (
+                      <>
+                        <FaCreditCard />
+                        <span>Pay with Paystack</span>
+                      </>
+                    )}
+                  </button>
+
+                  <p className="text-center text-xs text-gray-500 mt-4">
+                    Secure payment powered by Paystack. Your information is encrypted and secure.
                   </p>
-
-                  <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 sm:p-6 max-w-md mx-auto">
-                    <div className="text-center mb-4 sm:mb-6">
-                      <div className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">
-                        ₦{selectedPlan === 'monthly' ? '2,500' : '20,000'}
-                      </div>
-                      <div className="text-gray-600 text-sm">
-                        {selectedPlan === 'monthly' ? 'Monthly Plan' : 'Annual Plan'}
-                      </div>
-                    </div>
-
-                    <button
-                      onClick={handlePaystackPayment}
-                      className="w-full py-3 sm:py-4 bg-green-500 hover:bg-green-600 text-white rounded-xl transition-all duration-300 font-semibold text-sm sm:text-base shadow"
-                    >
-                      Pay with Paystack
-                    </button>
-
-                    <p className="text-xs text-gray-500 mt-3 sm:mt-4">
-                      Secure payment powered by Paystack
-                    </p>
-                  </div>
-
-                  <div className="bg-yellow-50 rounded-xl p-3 sm:p-4 border border-yellow-200 max-w-md mx-auto">
-                    <p className="text-yellow-800 text-xs sm:text-sm">
-                      After payment, your verification will be processed within 1-2 business days
-                    </p>
-                  </div>
                 </div>
               </motion.div>
             )}
           </AnimatePresence>
         </div>
 
-        {/* Footer Navigation - Flat colors, responsive */}
-        {currentStep !== 1 && currentStep !== 7 && (
+        {/* Footer Navigation */}
+        {currentStep !== 1 && currentStep !== 6 && (
           <div className="flex justify-between items-center p-4 sm:p-6 border-t border-gray-200 bg-white flex-shrink-0">
             <button
               onClick={prevStep}
-              disabled={isProcessing || currentStep === 2}
+              disabled={isProcessing}
               className="flex items-center gap-1 sm:gap-2 px-4 sm:px-6 py-2 sm:py-3 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50 transition-all duration-300 font-semibold text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <FaArrowLeft className="text-xs sm:text-sm" />
@@ -1227,20 +1157,22 @@ export default function VerificationModal({ isOpen, onClose, user }) {
                     <FaSpinner className="animate-spin inline mr-1 sm:mr-2" />
                     Processing...
                   </>
-                ) : currentStep === 6 ? 'Continue to Payment' : 'Continue'}
+                ) : 'Continue'}
               </span>
               {!isProcessing && <FaArrowRight className="text-xs sm:text-sm" />}
             </button>
           </div>
         )}
 
-        {currentStep === 7 && (
-          <div className="flex justify-center p-4 sm:p-6 border-t border-gray-200 bg-white flex-shrink-0">
+        {currentStep === 6 && (
+          <div className="p-4 sm:p-6 border-t border-gray-200 bg-white flex-shrink-0">
             <button
-              onClick={onClose}
-              className="px-6 sm:px-8 py-2.5 sm:py-4 bg-black hover:bg-gray-900 text-white rounded-xl transition-all duration-300 font-semibold text-sm sm:text-base shadow"
+              onClick={prevStep}
+              disabled={isProcessing}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50 transition-all duration-300 font-semibold text-sm sm:text-base disabled:opacity-50"
             >
-              Return to Dashboard
+              <FaArrowLeft className="text-xs sm:text-sm" />
+              Go Back to Edit Plan
             </button>
           </div>
         )}
