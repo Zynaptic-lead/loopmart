@@ -294,7 +294,13 @@ export default function StartSelling() {
         <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-6 mb-6">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <img src={logo} alt="Loopmart" className="h-8 sm:h-10 w-auto" />
+              {/* Make logo clickable - redirect to home */}
+              <button 
+                onClick={() => navigate('/')}
+                className="focus:outline-none hover:opacity-80 transition-opacity"
+              >
+                <img src={logo} alt="Loopmart" className="h-8 sm:h-10 w-auto" />
+              </button>
               <h1 className="text-xl sm:text-2xl font-bold text-gray-800">Start Selling</h1>
             </div>
             <div className="bg-green-100 text-green-700 px-3 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-medium flex items-center gap-2">
