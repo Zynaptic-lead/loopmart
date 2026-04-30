@@ -161,7 +161,8 @@ export default function StartSelling() {
       toast?.error('Please select a category');
       return;
     }
-    if (!formData.actual_price && formData.ask_for_price === '0') {
+    // Only validate price if NOT asking for price
+    if (formData.ask_for_price === '0' && !formData.actual_price) {
       toast?.error('Please enter price');
       return;
     }
@@ -212,7 +213,7 @@ export default function StartSelling() {
         formDataToSend.append('actual_price', formData.actual_price);
       }
       
-      if (formData.promo_price) {
+      if (formData.promo_price && formData.ask_for_price === '0') {
         formDataToSend.append('promo_price', formData.promo_price);
       }
       
@@ -390,33 +391,38 @@ export default function StartSelling() {
                   />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Price (₦) *
-                  </label>
-                  <input
-                    type="number"
-                    name="actual_price"
-                    value={formData.actual_price}
-                    onChange={handleInputChange}
-                    className="w-full border border-gray-300 rounded-lg px-3 sm:px-4 py-2 text-sm sm:text-base focus:ring-2 focus:ring-yellow-400 focus:border-transparent outline-none"
-                    placeholder="e.g., 50000"
-                  />
-                </div>
+                {/* Price fields - only show if NOT asking for price */}
+                {formData.ask_for_price === '0' && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Price (₦) *
+                      </label>
+                      <input
+                        type="number"
+                        name="actual_price"
+                        value={formData.actual_price}
+                        onChange={handleInputChange}
+                        className="w-full border border-gray-300 rounded-lg px-3 sm:px-4 py-2 text-sm sm:text-base focus:ring-2 focus:ring-yellow-400 focus:border-transparent outline-none"
+                        placeholder="e.g., 50000"
+                      />
+                    </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Promo Price (Optional)
-                  </label>
-                  <input
-                    type="number"
-                    name="promo_price"
-                    value={formData.promo_price}
-                    onChange={handleInputChange}
-                    className="w-full border border-gray-300 rounded-lg px-3 sm:px-4 py-2 text-sm sm:text-base focus:ring-2 focus:ring-yellow-400 focus:border-transparent outline-none"
-                    placeholder="e.g., 45000"
-                  />
-                </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Promo Price (Optional)
+                      </label>
+                      <input
+                        type="number"
+                        name="promo_price"
+                        value={formData.promo_price}
+                        onChange={handleInputChange}
+                        className="w-full border border-gray-300 rounded-lg px-3 sm:px-4 py-2 text-sm sm:text-base focus:ring-2 focus:ring-yellow-400 focus:border-transparent outline-none"
+                        placeholder="e.g., 45000"
+                      />
+                    </div>
+                  </>
+                )}
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -467,7 +473,11 @@ export default function StartSelling() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Images * (Max 5 images, 10MB each)
                   </label>
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 sm:p-6 text-center">
+                  {/* Make the entire container clickable for file upload */}
+                  <div 
+                    className="border-2 border-dashed border-gray-300 rounded-lg p-4 sm:p-6 text-center cursor-pointer hover:border-yellow-400 transition-colors"
+                    onClick={() => document.getElementById('imageUpload').click()}
+                  >
                     <input
                       type="file"
                       multiple
@@ -476,13 +486,10 @@ export default function StartSelling() {
                       id="imageUpload"
                       onChange={handleImageUpload}
                     />
-                    <label
-                      htmlFor="imageUpload"
-                      className="cursor-pointer inline-flex items-center gap-2 text-yellow-600 hover:text-yellow-700 font-medium text-sm sm:text-base"
-                    >
+                    <div className="inline-flex items-center gap-2 text-yellow-600 hover:text-yellow-700 font-medium text-sm sm:text-base">
                       <ImageIcon size={18} className="sm:size-5" />
-                      Click to upload images
-                    </label>
+                      Click anywhere to upload images
+                    </div>
                     <p className="text-xs sm:text-sm text-gray-500 mt-2">
                       PNG, JPG, GIF up to 10MB each
                     </p>
