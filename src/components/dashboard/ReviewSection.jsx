@@ -72,7 +72,11 @@ export default function ReviewSection() {
     
     reviewsList.forEach(review => {
       const rating = Math.min(Math.max(Math.round(review.rating), 1), 5);
-      distribution[5 - rating]++;
+      if (rating === 5) distribution[0]++;
+      else if (rating === 4) distribution[1]++;
+      else if (rating === 3) distribution[2]++;
+      else if (rating === 2) distribution[3]++;
+      else if (rating === 1) distribution[4]++;
     });
 
     const totalReviews = reviewsList.length;
@@ -88,20 +92,12 @@ export default function ReviewSection() {
   // Render stars based on rating
   const renderStars = (rating) => {
     const fullStars = Math.floor(rating);
-    const hasHalfStar = rating % 1 >= 0.5;
     
     return (
       <div className="flex items-center space-x-1">
         {[...Array(5)].map((_, index) => (
           index < fullStars ? (
             <FaStar key={index} className="text-yellow-400 text-lg" />
-          ) : index === fullStars && hasHalfStar ? (
-            <div key={index} className="relative">
-              <FaRegStar className="text-gray-300 text-lg" />
-              <div className="absolute left-0 top-0 overflow-hidden" style={{ width: '50%' }}>
-                <FaStar className="text-yellow-400 text-lg" />
-              </div>
-            </div>
           ) : (
             <FaRegStar key={index} className="text-gray-300 text-lg" />
           )
@@ -155,7 +151,7 @@ export default function ReviewSection() {
 
       const { userId, token, shop_token } = userData;
 
-      // Fetch all data in parallel for better performance
+      // Fetch all data in parallel
       const [profileResponse, productsResponse, avgRatingResponse, reviewsResponse] = await Promise.allSettled([
         ApiService.get('/api/v1/user').catch(err => ({ status: 'rejected', reason: err })),
         ApiService.get('/api/v1/user/products').catch(err => ({ status: 'rejected', reason: err })),
@@ -166,16 +162,16 @@ export default function ReviewSection() {
       // Process profile data
       if (profileResponse.status === 'fulfilled' && profileResponse.value?.data) {
         const profileData = profileResponse.value.data;
-        const userData = profileData.user || profileData;
+        const userDataFromApi = profileData.user || profileData;
         
-        setUserProfile(userData);
+        setUserProfile(userDataFromApi);
         
         setUserStats(prev => ({
           ...prev,
-          name: userData.name || userData.username || 'Unknown',
-          profession: userData.bio || 'Not specified',
-          location: userData.business_location || userData.address || 'Not specified',
-          memberSince: userData.created_at ? new Date(userData.created_at).getFullYear().toString() : 'Unknown'
+          name: userDataFromApi.name || userDataFromApi.username || 'Unknown',
+          profession: userDataFromApi.bio || 'Not specified',
+          location: userDataFromApi.business_location || userDataFromApi.address || 'Not specified',
+          memberSince: userDataFromApi.created_at ? new Date(userDataFromApi.created_at).getFullYear().toString() : 'Unknown'
         }));
       } else {
         // Fallback to localStorage
@@ -189,8 +185,16 @@ export default function ReviewSection() {
       }
 
       // Process products data
-      if (productsResponse.status === 'fulfilled' && productsResponse.value?.data?.data) {
-        const productsData = productsResponse.value.data.data;
+      if (productsResponse.status === 'fulfilled' && productsResponse.value) {
+        let productsData = [];
+        if (productsResponse.value.data?.data) {
+          productsData = productsResponse.value.data.data;
+        } else if (Array.isArray(productsResponse.value.data)) {
+          productsData = productsResponse.value.data;
+        } else if (Array.isArray(productsResponse.value)) {
+          productsData = productsResponse.value;
+        }
+        
         if (Array.isArray(productsData)) {
           setUserStats(prev => ({
             ...prev,
@@ -202,25 +206,59 @@ export default function ReviewSection() {
       // Process average rating
       if (avgRatingResponse.status === 'fulfilled' && avgRatingResponse.value?.data) {
         const avgData = avgRatingResponse.value.data;
-        const avgRating = parseFloat(avgData.average_rating || 0);
-        setAverageRating(avgRating);
+        const avgRatingValue = parseFloat(avgData.avg_rating || avgData.average_rating || avgData.avg || 0);
+        setAverageRating(avgRatingValue);
       }
 
-      // Process reviews
-      if (reviewsResponse.status === 'fulfilled' && reviewsResponse.value?.data) {
-        const reviewsData = reviewsResponse.value.data.data || [];
+      // Process reviews - FIXED: Handle the API response structure correctly
+      if (reviewsResponse.status === 'fulfilled' && reviewsResponse.value) {
+        const responseData = reviewsResponse.value;
+        console.log('Reviews API Response:', responseData);
         
-        const formattedReviews = Array.isArray(reviewsData) ? reviewsData.map((review, index) => ({
-          id: review.id || review.review_id || index,
-          rating: review.rating || review.stars || 0,
-          comment: review.comment || review.review_text || review.message || '',
-          created_at: review.created_at || review.date || review.createdAt || new Date().toISOString(),
-          reviewer_name: review.reviewer_name || review.user_name || review.reviewer || 'Anonymous',
-          reviewer_image: review.reviewer_image || review.user_image,
-          product_name: review.product_name || review.product_title || 'Product',
-          product_id: review.product_id || 0
-        })) : [];
+        let formattedReviews = [];
+        
+        // Handle different response structures
+        if (responseData.status === true && responseData.productReviews) {
+          // Structure from your API: { status: true, productReviews: [...] }
+          responseData.productReviews.forEach(product => {
+            if (product.reviews && Array.isArray(product.reviews)) {
+              product.reviews.forEach(review => {
+                formattedReviews.push({
+                  id: review.id || Date.now(),
+                  rating: parseInt(review.rate) || 3,
+                  comment: review.comment || 'No comment provided',
+                  created_at: review.created_at || new Date().toISOString(),
+                  reviewer_name: review.user?.name || 'Anonymous',
+                  reviewer_image: review.user?.photo_url,
+                  product_name: product.title || 'Product',
+                  product_id: product.id
+                });
+              });
+            }
+          });
+        } else if (responseData.data && Array.isArray(responseData.data)) {
+          formattedReviews = responseData.data.map(review => ({
+            id: review.id,
+            rating: review.rating || review.rate || 3,
+            comment: review.comment || '',
+            created_at: review.created_at,
+            reviewer_name: review.reviewer_name || review.user_name,
+            reviewer_image: review.reviewer_image,
+            product_name: review.product_name
+          }));
+        } else if (Array.isArray(responseData)) {
+          formattedReviews = responseData.map(review => ({
+            id: review.id,
+            rating: review.rating || review.rate || 3,
+            comment: review.comment || '',
+            created_at: review.created_at,
+            reviewer_name: review.reviewer_name,
+            reviewer_image: review.reviewer_image,
+            product_name: review.product_name
+          }));
+        }
 
+        console.log('Formatted reviews:', formattedReviews);
         setReviews(formattedReviews);
         setUserStats(prev => ({
           ...prev,
@@ -228,6 +266,16 @@ export default function ReviewSection() {
         }));
 
         calculateRatingDistribution(formattedReviews);
+        
+        // Calculate average from reviews if not from API
+        if (formattedReviews.length > 0 && averageRating === 0) {
+          const sum = formattedReviews.reduce((acc, review) => acc + review.rating, 0);
+          const avg = sum / formattedReviews.length;
+          setAverageRating(avg);
+        }
+      } else {
+        console.log('No reviews found or failed to fetch');
+        setReviews([]);
       }
 
     } catch (error) {
