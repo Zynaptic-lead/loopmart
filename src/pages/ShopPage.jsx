@@ -1,4 +1,4 @@
-// ShopPage.jsx - Fixed banner upload visibility
+// ShopPage.jsx - Add Product button removed for visitors
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -919,7 +919,7 @@ export default function ShopPage() {
 
       <div className="max-w-7xl mx-auto px-4 py-6">
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-          {/* Banner Section - FIXED: Only show upload button for shop owner */}
+          {/* Banner Section */}
           <div className="h-32 md:h-48 lg:h-56 relative border-b border-gray-300">
             {shop.coverImage && shop.coverImage !== '' && !bannerError ? (
               <>
@@ -931,7 +931,6 @@ export default function ShopPage() {
                   onLoad={() => console.log('Banner loaded successfully')}
                 />
                 <div className="absolute inset-0 bg-black bg-opacity-30"></div>
-                {/* Only show camera button for shop owner */}
                 {isOwnShop && (
                   <button className="absolute top-4 right-4 bg-black bg-opacity-50 hover:bg-opacity-70 text-white p-2 md:p-3 rounded-full transition-all">
                     <FaCamera size={16} />
@@ -940,27 +939,16 @@ export default function ShopPage() {
               </>
             ) : (
               <div className="w-full h-full relative">
-                {/* Gradient background for empty banner */}
                 <div className="absolute inset-0 bg-gradient-to-r from-blue-500 via-purple-600 to-pink-500"></div>
-                
-                {/* For shop owner - show upload CTA */}
-                {isOwnShop ? (
-                  <div className="relative z-10 w-full h-full flex flex-col items-center justify-center text-white p-4">
-
-                    
-                  </div>
-                ) : (
-                  // For visitors - just show shop name
-                  <div className="relative z-10 w-full h-full flex flex-col items-center justify-center text-white p-4">
-                    <FaStore className="text-3xl md:text-4xl mx-auto mb-2" />
-                    <p className="text-sm md:text-base opacity-90 font-medium">
-                      {shop.username}
-                    </p>
-                    <p className="text-xs md:text-sm opacity-60 mt-1">
-                      {shop.isVerified ? 'Verified Seller' : 'Seller'}
-                    </p>
-                  </div>
-                )}
+                <div className="relative z-10 w-full h-full flex flex-col items-center justify-center text-white p-4">
+                  <FaStore className="text-3xl md:text-4xl mx-auto mb-2" />
+                  <p className="text-sm md:text-base opacity-90 font-medium">
+                    {shop.username}
+                  </p>
+                  <p className="text-xs md:text-sm opacity-60 mt-1">
+                    {shop.isVerified ? 'Verified Seller' : 'Seller'}
+                  </p>
+                </div>
               </div>
             )}
           </div>
@@ -997,7 +985,7 @@ export default function ShopPage() {
                 )}
               </div>
               
-              {/* Action Buttons */}
+              {/* Action Buttons - Removed Add Product button for visitors */}
               <div className="mt-4 md:mt-0 md:ml-auto md:mb-2 flex flex-col sm:flex-row gap-2 justify-center md:justify-end">
                 {isOwnShop && !shop.isVerified && (
                   <button className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-4 py-2 md:px-6 md:py-3 rounded-lg font-semibold flex items-center gap-2 animate-pulse shadow-lg">
@@ -1005,20 +993,13 @@ export default function ShopPage() {
                     <span>Get Verified</span>
                   </button>
                 )}
-                {isOwnShop ? (
-                  <button 
-                    onClick={handleAddProduct}
-                    className="bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 text-white px-4 py-2 md:px-6 md:py-3 rounded-lg font-semibold flex items-center gap-2 shadow-lg transition-all"
-                  >
-                    <FaPlus size={14} />
-                    <span>Add Product</span>
-                  </button>
-                ) : (
+                {/* Only show Contact Seller for visitors, Add Product only for shop owner */}
+                {!isOwnShop && (
                   <button 
                     onClick={handleContactSeller}
                     className="bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 text-white px-4 py-2 md:px-6 md:py-3 rounded-lg font-semibold flex items-center gap-2 shadow-lg transition-all"
                   >
-                    <FaPlus size={14} />
+                    <FaPhone size={14} />
                     <span>Contact Seller</span>
                   </button>
                 )}
@@ -1032,7 +1013,7 @@ export default function ShopPage() {
               </div>
             </div>
 
-            {/* Shop Details - Rest of the code remains the same */}
+            {/* Shop Details - Rest remains the same */}
             <div className="mt-4 text-center md:text-left">
               <div className="flex items-center justify-center md:justify-start space-x-2 mb-1">
                 <h1 className="text-xl md:text-2xl font-bold text-gray-900">{shop.username}</h1>
@@ -1144,7 +1125,7 @@ export default function ShopPage() {
             </div>
           </div>
 
-          {/* Products Section - Rest remains the same */}
+          {/* Products Section */}
           <div className="px-4 md:px-6 pb-4 md:pb-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg md:text-xl font-semibold text-gray-900">
@@ -1303,21 +1284,6 @@ export default function ShopPage() {
                       ? 'Start selling by listing your first product' 
                       : 'This shop hasn\'t listed any products yet.'}
                   </p>
-                  {isOwnShop ? (
-                    <button 
-                      onClick={handleAddProduct}
-                      className="bg-yellow-500 text-white px-6 py-2 rounded-lg hover:bg-yellow-600 font-semibold flex items-center gap-2 mx-auto"
-                    >
-                      <FaPlus size={14} /> Add Product
-                    </button>
-                  ) : (
-                    <button 
-                      onClick={handleContactSeller}
-                      className="bg-yellow-500 text-white px-6 py-2 rounded-lg hover:bg-yellow-600 font-semibold flex items-center gap-2 mx-auto"
-                    >
-                      <FaPhone size={14} /> Contact Seller
-                    </button>
-                  )}
                 </div>
               </div>
             )}
