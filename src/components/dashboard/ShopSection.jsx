@@ -1,4 +1,4 @@
-// ShopSection.jsx - COMPLETE REWRITE
+// ShopSection.jsx - COMPLETE WORKING VERSION
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -432,6 +432,239 @@ const CameraCaptureModal = ({ isOpen, onClose, onCapture, title, isCapturing }) 
   );
 };
 
+// Edit Product Modal
+const EditProductModal = ({ product, isOpen, onClose, onSave }) => {
+  const [formData, setFormData] = useState({
+    title: '',
+    description: '',
+    category: '',
+    condition: '',
+    actual_price: '',
+    promo_price: '',
+    location: '',
+    quantity: '1',
+    ask_for_price: false,
+    images: [],
+    existing_images: []
+  });
+  const [currentStep, setCurrentStep] = useState(1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const fileInputRef = useRef(null);
+
+  useEffect(() => {
+    if (product && isOpen) {
+      setFormData({
+        title: product.title,
+        description: product.description,
+        category: product.category_id || '',
+        condition: product.condition,
+        actual_price: product.actual_price || '',
+        promo_price: product.promo_price || '',
+        location: product.location,
+        quantity: product.quantity,
+        ask_for_price: product.ask_for_price,
+        images: [],
+        existing_images: product.image ? [product.image] : []
+      });
+    }
+  }, [product, isOpen]);
+
+  const handleInputChange = (field, value) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleImageUpload = (e) => {
+    const files = e.target.files;
+    if (files) {
+      const newImages = Array.from(files).slice(0, 5 - formData.images.length);
+      setFormData(prev => ({ ...prev, images: [...prev.images, ...newImages] }));
+    }
+  };
+
+  const removeImage = (index, type) => {
+    if (type === 'existing') {
+      setFormData(prev => ({ ...prev, existing_images: prev.existing_images.filter((_, i) => i !== index) }));
+    } else {
+      setFormData(prev => ({ ...prev, images: prev.images.filter((_, i) => i !== index) }));
+    }
+  };
+
+  const triggerFileInput = () => fileInputRef.current?.click();
+
+  const handleSubmit = async () => {
+    if (!product) return;
+    setIsSubmitting(true);
+    try {
+      await onSave(product.product_id, formData);
+    } catch (error) {
+      console.error('Error saving product:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const nextStep = () => setCurrentStep(2);
+  const prevStep = () => setCurrentStep(1);
+
+  if (!isOpen || !product) return null;
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+        onClick={onClose}
+      >
+        <motion.div
+          initial={{ scale: 0.9, opacity: 0, y: 20 }}
+          animate={{ scale: 1, opacity: 1, y: 0 }}
+          exit={{ scale: 0.9, opacity: 0, y: 20 }}
+          className="bg-white rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden mx-4"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex justify-between items-center p-4 md:p-6 border-b border-gray-200">
+            <h2 className="text-lg md:text-xl font-semibold text-gray-900">Edit Product</h2>
+            <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full">
+              <FaTimes size={20} />
+            </button>
+          </div>
+
+          <div className="p-4 md:p-6 overflow-y-auto max-h-[70vh]">
+            <div className="flex justify-center mb-6">
+              <div className="flex items-center">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${currentStep === 1 ? 'bg-yellow-500 text-white' : 'bg-gray-200 text-gray-600'}`}>1</div>
+                <div className={`w-8 md:w-16 h-1 ${currentStep === 2 ? 'bg-yellow-500' : 'bg-gray-200'}`}></div>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${currentStep === 2 ? 'bg-yellow-500 text-white' : 'bg-gray-200 text-gray-600'}`}>2</div>
+              </div>
+            </div>
+
+            {currentStep === 1 && (
+              <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="space-y-4 md:space-y-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Product Title *</label>
+                  <input type="text" value={formData.title} onChange={(e) => handleInputChange('title', e.target.value)} className="w-full px-3 md:px-4 py-2 md:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none transition" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Location *</label>
+                  <select value={formData.location} onChange={(e) => handleInputChange('location', e.target.value)} className="w-full px-3 md:px-4 py-2 md:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none transition">
+                    <option value="">Select location</option>
+                    {NIGERIAN_STATES.map(state => <option key={state} value={state}>{state}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Quantity *</label>
+                  <input type="number" value={formData.quantity} onChange={(e) => handleInputChange('quantity', e.target.value)} min="1" className="w-full px-3 md:px-4 py-2 md:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none transition" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Description *</label>
+                  <textarea value={formData.description} onChange={(e) => handleInputChange('description', e.target.value)} rows={3} className="w-full px-3 md:px-4 py-2 md:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none transition resize-none" placeholder="Describe your product" />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Category *</label>
+                    <select value={formData.category} onChange={(e) => handleInputChange('category', e.target.value)} className="w-full px-3 md:px-4 py-2 md:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none transition">
+                      <option value="">Select category</option>
+                      {CATEGORIES.map(category => <option key={category.id} value={category.id}>{category.name}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Condition *</label>
+                    <select value={formData.condition} onChange={(e) => handleInputChange('condition', e.target.value)} className="w-full px-3 md:px-4 py-2 md:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none transition">
+                      <option value="">Select condition</option>
+                      {CONDITIONS.map(condition => <option key={condition.value} value={condition.value}>{condition.label}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <div className="flex justify-end pt-4">
+                  <button onClick={nextStep} className="bg-yellow-500 text-white px-4 md:px-6 py-2 md:py-3 rounded-lg hover:bg-yellow-600 font-semibold">Continue to Pricing & Images</button>
+                </div>
+              </motion.div>
+            )}
+
+            {currentStep === 2 && (
+              <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-4 md:space-y-6">
+                <div className="flex items-center justify-between p-3 md:p-4 border border-gray-200 rounded-lg bg-gray-50">
+                  <div>
+                    <h3 className="font-medium text-gray-800 text-sm md:text-base">Ask for Price</h3>
+                    <p className="text-xs md:text-sm text-gray-600">Let buyers contact you for pricing</p>
+                  </div>
+                  <label className="inline-flex items-center cursor-pointer">
+                    <input type="checkbox" checked={formData.ask_for_price} onChange={(e) => handleInputChange('ask_for_price', e.target.checked)} className="sr-only peer" />
+                    <div className="relative w-10 md:w-12 h-5 md:h-6 bg-gray-300 peer-focus:outline-none rounded-full peer transition-all duration-300 peer-checked:bg-yellow-500">
+                      <div className={`absolute top-0.5 md:top-1 w-4 h-4 bg-white rounded-full transition-transform duration-300 ${formData.ask_for_price ? 'translate-x-5 md:translate-x-7' : 'translate-x-0.5 md:translate-x-1'}`} />
+                    </div>
+                  </label>
+                </div>
+
+                {!formData.ask_for_price && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Actual Price (₦) *</label>
+                      <div className="relative">
+                        <FaDollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={14} />
+                        <input type="number" value={formData.actual_price} onChange={(e) => handleInputChange('actual_price', e.target.value)} className="w-full pl-9 pr-4 py-2 md:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none transition" placeholder="0.00" />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Promo Price (₦)</label>
+                      <div className="relative">
+                        <FaTag className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={14} />
+                        <input type="number" value={formData.promo_price} onChange={(e) => handleInputChange('promo_price', e.target.value)} className="w-full pl-9 pr-4 py-2 md:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none transition" placeholder="0.00" />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-3">Upload Images (You can upload multiple images)</label>
+                  
+                  {formData.existing_images.length > 0 && (
+                    <div className="mb-4">
+                      <p className="text-sm text-gray-600 mb-2">Current Images:</p>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+                        {formData.existing_images.map((image, index) => (
+                          <div key={index} className="relative group">
+                            <img src={image} alt={`Product ${index + 1}`} className="w-full h-20 md:h-24 object-cover rounded-lg border" />
+                            <button type="button" onClick={() => removeImage(index, 'existing')} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 md:w-6 md:h-6 flex items-center justify-center text-xs hover:bg-red-600">×</button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-4">
+                    {formData.images.map((image, index) => (
+                      <div key={index} className="relative group">
+                        <img src={URL.createObjectURL(image)} alt={`New ${index + 1}`} className="w-full h-20 md:h-24 object-cover rounded-lg border" />
+                        <button type="button" onClick={() => removeImage(index, 'new')} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 md:w-6 md:h-6 flex items-center justify-center text-xs hover:bg-red-600">×</button>
+                      </div>
+                    ))}
+                    {formData.images.length < 5 && (
+                      <button type="button" onClick={triggerFileInput} className="w-full h-20 md:h-24 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center text-gray-400 hover:text-gray-600 hover:border-gray-400 transition-colors">
+                        <FaUpload size={20} /><span className="text-xs mt-1">Upload Image</span>
+                      </button>
+                    )}
+                  </div>
+                  <input ref={fileInputRef} type="file" multiple accept="image/*" onChange={handleImageUpload} className="hidden" />
+                </div>
+
+                <div className="flex justify-between pt-4">
+                  <button onClick={prevStep} className="px-4 md:px-6 py-2 md:py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">Back</button>
+                  <button onClick={handleSubmit} disabled={isSubmitting} className="bg-green-500 text-white px-4 md:px-6 py-2 md:py-3 rounded-lg hover:bg-green-600 font-semibold flex items-center gap-2 disabled:opacity-50">
+                    {isSubmitting ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> Saving...</> : <><FaSave size={14} /> Update Product</>}
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  );
+};
+
 export default function ShopSection() {
   const navigate = useNavigate();
   const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false);
@@ -441,6 +674,8 @@ export default function ShopSection() {
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState({ show: false, productId: null, productTitle: '' });
+  const [editModal, setEditModal] = useState({ show: false, product: null });
+  const [shareModal, setShareModal] = useState({ show: false, product: null });
   const [successModal, setSuccessModal] = useState({ show: false, message: '' });
   const [isMobile, setIsMobile] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
@@ -459,7 +694,7 @@ export default function ShopSection() {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Fetch badge status
+  // Fetch badge status from API
   const fetchBadgeStatus = useCallback(async () => {
     try {
       setCheckingBadge(true);
@@ -468,7 +703,7 @@ export default function ShopSection() {
       if (response && response.status === true) {
         setBadgeStatus({
           isVerified: true,
-          badgeType: response.badge?.badge_type || response.badge_type || 'verified',
+          badgeType: response.badge?.badge_type || response.badge_type || 'monthly',
         });
       } else {
         setBadgeStatus({ isVerified: false, badgeType: null });
@@ -499,7 +734,7 @@ export default function ShopSection() {
     businessDescription: userData.bio || ''
   }), []);
 
-  // Load user and badge
+  // Load user and badge on mount
   useEffect(() => {
     const loadUser = async () => {
       const currentUser = userService.getUser();
@@ -524,16 +759,12 @@ export default function ShopSection() {
     return unsubscribe;
   }, [userToProfile, fetchBadgeStatus]);
 
-  // Fetch products - FIXED VERSION
+  // Fetch user products - FIXED
   const fetchUserProducts = useCallback(async () => {
     try {
-      console.log('Fetching user products...');
       const response = await ApiService.get('/api/v1/user/products');
-      console.log('Products response:', response);
       
       let productsArray = [];
-      
-      // Handle different response structures
       if (response && response.status === true && response.data) {
         productsArray = Array.isArray(response.data) ? response.data : [];
       } else if (response && Array.isArray(response)) {
@@ -542,16 +773,14 @@ export default function ShopSection() {
         productsArray = response.products;
       }
       
-      console.log('Products array:', productsArray);
-      
-      const transformed = productsArray.map((product, idx) => {
+      const transformedProducts = productsArray.map((product, index) => {
         let imageUrl = '';
         try {
           if (product.image_url) {
             if (typeof product.image_url === 'string' && product.image_url.startsWith('[')) {
               const images = JSON.parse(product.image_url);
               imageUrl = images && images.length > 0 ? getProductImageUrl(images[0]) : '';
-            } else if (typeof product.image_url === 'string') {
+            } else {
               imageUrl = getProductImageUrl(product.image_url);
             }
           }
@@ -567,8 +796,8 @@ export default function ShopSection() {
         }
         
         return {
-          id: product.product_id?.toString() || product.id?.toString() || `temp-${idx}`,
-          product_id: product.product_id?.toString() || product.id?.toString() || `temp-${idx}`,
+          id: product.product_id?.toString() || product.id?.toString() || `temp-${index}`,
+          product_id: product.product_id?.toString() || product.id?.toString() || `temp-${index}`,
           title: product.title || 'Untitled',
           price: price,
           image: imageUrl,
@@ -579,11 +808,11 @@ export default function ShopSection() {
           ask_for_price: product.ask_for_price || false,
           actual_price: product.actual_price,
           promo_price: product.promo_price,
+          category_id: product.category_id || product.category
         };
       });
       
-      console.log('Transformed products:', transformed.length);
-      return transformed;
+      return transformedProducts;
     } catch (error) {
       console.error('Error fetching products:', error);
       return [];
@@ -634,11 +863,8 @@ export default function ShopSection() {
           const profile = userToProfile(updatedUser, badgeStatus);
           setUser(profile);
         }
-      } else {
-        throw new Error(result.message || 'Update failed');
       }
     } catch (error) {
-      console.error('Error updating image:', error);
       setSaveMessage(error.message || 'Update failed');
     } finally {
       setIsSaving(false);
@@ -679,7 +905,6 @@ export default function ShopSection() {
         }
       }
     } catch (error) {
-      console.error('Error removing image:', error);
       setSaveMessage(error.message || 'Remove failed');
     } finally {
       setIsSaving(false);
@@ -740,10 +965,47 @@ export default function ShopSection() {
   };
 
   const handleShareProduct = (product) => setShareModal({ show: true, product });
-  const [shareModal, setShareModal] = useState({ show: false, product: null });
+  const handleEditProduct = (product) => setEditModal({ show: true, product });
+  const handleSaveProduct = async (productId, data) => {
+    try {
+      setIsSaving(true);
+      const formData = new FormData();
+      formData.append('title', data.title);
+      formData.append('description', data.description);
+      formData.append('category', data.category);
+      formData.append('condition', data.condition);
+      formData.append('location', data.location);
+      formData.append('quantity', data.quantity);
+      
+      if (data.ask_for_price) {
+        formData.append('ask_for_price', '1');
+      } else {
+        formData.append('ask_for_price', '0');
+        formData.append('actual_price', data.actual_price);
+        if (data.promo_price) formData.append('promo_price', data.promo_price);
+      }
+      
+      data.images.forEach((image) => formData.append('image_url[]', image));
+      data.existing_images.forEach((image) => formData.append('existing_images[]', image));
+      
+      const response = await ApiService.post(`/api/v1/product/edit/${productId}`, formData, true);
+      
+      if (response.status) {
+        setEditModal({ show: false, product: null });
+        setSuccessModal({ show: true, message: 'Product updated successfully!' });
+        refreshProducts();
+      }
+    } catch (error) {
+      setSaveMessage(error.message || 'Failed to update product');
+      setTimeout(() => setSaveMessage(''), 5000);
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
-  const handleEditProduct = (product) => {
-    navigate(`/edit-product/${product.product_id}`);
+  const handleBoostProduct = (product) => {
+    setSaveMessage(`Boost feature coming soon for "${product.title}"`);
+    setTimeout(() => setSaveMessage(''), 3000);
   };
 
   const handleDeleteProduct = (productId) => {
@@ -761,18 +1023,12 @@ export default function ShopSection() {
         setProducts(prev => prev.filter(p => p.product_id !== deleteConfirm.productId));
       }
     } catch (error) {
-      console.error('Error deleting product:', error);
       setSaveMessage(error.message || 'Delete failed');
     } finally {
       setIsSaving(false);
       setDeleteConfirm({ show: false, productId: null, productTitle: '' });
       setTimeout(() => setSaveMessage(''), 3000);
     }
-  };
-
-  const handleBoostProduct = (product) => {
-    setSaveMessage(`Boost feature coming soon for "${product.title}"`);
-    setTimeout(() => setSaveMessage(''), 3000);
   };
 
   const handleVerificationModalClose = async () => {
@@ -809,11 +1065,7 @@ export default function ShopSection() {
             initial={{ opacity: 0, y: -50 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -50 }}
-            className={`p-3 m-4 rounded-lg ${
-              saveMessage.includes('success') || saveMessage.includes('updated') || saveMessage.includes('removed')
-                ? 'bg-green-50 border border-green-200 text-green-700'
-                : 'bg-red-50 border border-red-200 text-red-700'
-            }`}
+            className={`p-3 m-4 rounded-lg ${saveMessage.includes('success') || saveMessage.includes('updated') || saveMessage.includes('removed') ? 'bg-green-50 border border-green-200 text-green-700' : 'bg-red-50 border border-red-200 text-red-700'}`}
           >
             <p className="text-sm font-medium">{saveMessage.includes('success') || saveMessage.includes('updated') ? '✅ ' : '❌ '}{saveMessage}</p>
           </motion.div>
@@ -822,40 +1074,24 @@ export default function ShopSection() {
 
       {/* Modals */}
       <SuccessModal isOpen={successModal.show} onClose={() => setSuccessModal({ show: false, message: '' })} message={successModal.message} />
+      <EditProductModal product={editModal.product} isOpen={editModal.show} onClose={() => setEditModal({ show: false, product: null })} onSave={handleSaveProduct} />
       
       {shareModal.product && (
-        <ShareModal
-          isOpen={shareModal.show}
-          onClose={() => setShareModal({ show: false, product: null })}
-          productId={shareModal.product.product_id}
-          productTitle={shareModal.product.title}
-        />
+        <ShareModal isOpen={shareModal.show} onClose={() => setShareModal({ show: false, product: null })} productId={shareModal.product.product_id} productTitle={shareModal.product.title} />
       )}
 
       {/* Delete Confirmation */}
       <AnimatePresence>
         {deleteConfirm.show && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="bg-white rounded-2xl w-full max-w-md p-6"
-            >
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <motion.div initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0, y: 20 }} className="bg-white rounded-2xl w-full max-w-md p-6">
               <div className="text-center">
                 <FaTrash className="text-red-500 text-4xl mx-auto mb-4" />
                 <h3 className="text-xl font-semibold text-gray-900 mb-2">Delete Product</h3>
                 <p className="text-gray-600 mb-6">Are you sure you want to delete "<strong>{deleteConfirm.productTitle}</strong>"? This cannot be undone.</p>
               </div>
               <div className="flex gap-3">
-                <button onClick={() => setDeleteConfirm({ show: false, productId: null, productTitle: '' })} className="flex-1 bg-gray-300 text-gray-700 py-3 rounded-lg hover:bg-gray-400 font-semibold">
-                  Cancel
-                </button>
+                <button onClick={() => setDeleteConfirm({ show: false, productId: null, productTitle: '' })} className="flex-1 bg-gray-300 text-gray-700 py-3 rounded-lg hover:bg-gray-400 font-semibold">Cancel</button>
                 <button onClick={confirmDeleteProduct} className="flex-1 bg-red-500 text-white py-3 rounded-lg hover:bg-red-600 font-semibold flex items-center justify-center gap-2">
                   {isSaving ? <FaSpinner className="animate-spin" /> : <><FaTrash size={14} /> Delete</>}
                 </button>
@@ -866,80 +1102,44 @@ export default function ShopSection() {
       </AnimatePresence>
 
       {/* Image Options */}
-      <ImageOptionsModal
-        isOpen={showProfileModal}
-        onClose={() => setShowProfileModal(false)}
-        onTakePhoto={() => openCamera('profile')}
-        onUploadPhoto={() => triggerFileInput('profile')}
-        onRemovePhoto={() => removeShopImage('profile')}
-        hasImage={!!profileUrl}
-        title="Profile Picture"
-      />
-
-      <ImageOptionsModal
-        isOpen={showBannerModal}
-        onClose={() => setShowBannerModal(false)}
-        onTakePhoto={() => openCamera('banner')}
-        onUploadPhoto={() => triggerFileInput('banner')}
-        onRemovePhoto={() => removeShopImage('banner')}
-        hasImage={!!bannerUrl}
-        title="Shop Banner"
-      />
-
-      <CameraCaptureModal
-        isOpen={showCameraModal}
-        onClose={() => setShowCameraModal(false)}
-        onCapture={handleCaptureImage}
-        title={`Capture ${currentImageType === 'banner' ? 'Banner' : 'Profile'}`}
-        isCapturing={isSaving}
-      />
-
+      <ImageOptionsModal isOpen={showProfileModal} onClose={() => setShowProfileModal(false)} onTakePhoto={() => openCamera('profile')} onUploadPhoto={() => triggerFileInput('profile')} onRemovePhoto={() => removeShopImage('profile')} hasImage={!!profileUrl} title="Profile Picture" />
+      <ImageOptionsModal isOpen={showBannerModal} onClose={() => setShowBannerModal(false)} onTakePhoto={() => openCamera('banner')} onUploadPhoto={() => triggerFileInput('banner')} onRemovePhoto={() => removeShopImage('banner')} hasImage={!!bannerUrl} title="Shop Banner" />
+      <CameraCaptureModal isOpen={showCameraModal} onClose={() => setShowCameraModal(false)} onCapture={handleCaptureImage} title={`Capture ${currentImageType === 'banner' ? 'Banner' : 'Profile'}`} isCapturing={isSaving} />
+      
       <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileUpload} />
 
       {/* Profile Header */}
       <div className="relative">
-        {/* Banner */}
         <div className="h-32 md:h-48 lg:h-56 relative bg-gradient-to-r from-gray-800 to-gray-900">
           {bannerUrl ? (
             <>
               <img src={bannerUrl} alt="Banner" className="w-full h-full object-cover" />
-              <button onClick={() => setShowBannerModal(true)} className="absolute top-4 right-4 bg-black/50 text-white p-2 rounded-full hover:bg-black/70">
-                <FaCamera size={16} />
-              </button>
+              <button onClick={() => setShowBannerModal(true)} className="absolute top-4 right-4 bg-black/50 text-white p-2 rounded-full hover:bg-black/70"><FaCamera size={16} /></button>
             </>
           ) : (
             <div className="w-full h-full flex flex-col items-center justify-center">
-              <button onClick={() => setShowBannerModal(true)} className="bg-white/20 text-white p-4 rounded-full hover:bg-white/30">
-                <FaCamera className="text-2xl" />
-              </button>
+              <button onClick={() => setShowBannerModal(true)} className="bg-white/20 text-white p-4 rounded-full hover:bg-white/30"><FaCamera className="text-2xl" /></button>
               <p className="text-white/70 text-sm mt-2">Add Banner</p>
             </div>
           )}
         </div>
 
-        {/* Profile Info */}
         <div className="px-4 md:px-6 pb-6">
           <div className="flex flex-col md:flex-row md:items-end md:-mt-16 mb-4">
-            {/* Avatar */}
             <div className="relative -mt-12 md:-mt-0 mx-auto md:mx-0">
               {profileUrl ? (
                 <div className="w-24 h-24 md:w-32 md:h-32 rounded-full border-4 border-white overflow-hidden bg-white shadow-lg">
                   <img src={profileUrl} alt="Profile" className="w-full h-full object-cover" />
-                  <button onClick={() => setShowProfileModal(true)} className="absolute bottom-2 right-2 bg-black/70 text-white p-1.5 rounded-full hover:bg-black">
-                    <FaCamera size={12} />
-                  </button>
+                  <button onClick={() => setShowProfileModal(true)} className="absolute bottom-2 right-2 bg-black/70 text-white p-1.5 rounded-full hover:bg-black"><FaCamera size={12} /></button>
                 </div>
               ) : (
                 <div className="w-24 h-24 md:w-32 md:h-32 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-full border-4 border-white flex items-center justify-center text-white text-3xl font-bold shadow-lg">
                   {getInitials(user.email, user.name, user.username)}
-                  <button onClick={() => setShowProfileModal(true)} className="absolute bottom-2 right-2 bg-black/70 text-white p-1.5 rounded-full hover:bg-black">
-                    <FaCamera size={12} />
-                  </button>
+                  <button onClick={() => setShowProfileModal(true)} className="absolute bottom-2 right-2 bg-black/70 text-white p-1.5 rounded-full hover:bg-black"><FaCamera size={12} /></button>
                 </div>
               )}
             </div>
 
-            {/* Action Buttons */}
             <div className="mt-4 md:mt-0 md:ml-auto flex flex-col sm:flex-row gap-2">
               {!checkingBadge && !user.isVerified && (
                 <button onClick={() => setIsVerificationModalOpen(true)} className="bg-black text-white px-4 py-2 rounded-lg font-semibold flex items-center gap-2 hover:bg-gray-800">
