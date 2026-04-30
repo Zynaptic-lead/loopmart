@@ -947,9 +947,7 @@ export default function ShopPage() {
                 {isOwnShop ? (
                   <div className="relative z-10 w-full h-full flex flex-col items-center justify-center text-white p-4">
 
-                    <button className="mt-3 bg-white bg-opacity-20 hover:bg-opacity-30 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all">
-                      Upload Banner
-                    </button>
+                    
                   </div>
                 ) : (
                   // For visitors - just show shop name
