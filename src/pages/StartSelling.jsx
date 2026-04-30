@@ -488,7 +488,7 @@ export default function StartSelling() {
                     />
                     <div className="inline-flex items-center gap-2 text-yellow-600 hover:text-yellow-700 font-medium text-sm sm:text-base">
                       <ImageIcon size={18} className="sm:size-5" />
-                      Click anywhere to upload images
+                      Click here to upload images
                     </div>
                     <p className="text-xs sm:text-sm text-gray-500 mt-2">
                       PNG, JPG, GIF up to 10MB each
