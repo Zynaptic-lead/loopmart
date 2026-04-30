@@ -1,3 +1,4 @@
+// ShopSection.jsx - CORRECTED WITH BADGE API INTEGRATION
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -6,7 +7,7 @@ import {
   FaStore, FaPhone, FaMapMarkerAlt, FaSave, FaPlus,
   FaShare, FaEdit, FaRocket, FaTrash, FaEllipsisV,
   FaDollarSign, FaTag, FaCopy, FaLink, FaCamera,
-  FaUpload, FaImage, FaStar
+  FaUpload, FaImage, FaStar, FaShieldAlt, FaCrown
 } from 'react-icons/fa';
 import { userService } from '../../services/userService';
 import ApiService from '../../services/api';
@@ -987,6 +988,8 @@ export default function ShopSection() {
   const [showBannerModal, setShowBannerModal] = useState(false);
   const [showCameraModal, setShowCameraModal] = useState(false);
   const [currentImageType, setCurrentImageType] = useState('banner');
+  const [badgeStatus, setBadgeStatus] = useState({ isVerified: false, badgeType: null, expiryDate: null });
+  const [checkingBadge, setCheckingBadge] = useState(true);
   
   const fileInputRef = useRef(null);
 
@@ -1001,47 +1004,96 @@ export default function ShopSection() {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Convert User to UserProfile - UPDATED to match login response
-  const userToProfile = useCallback((userData) => ({
+  // Fetch badge status from API
+  const fetchBadgeStatus = useCallback(async () => {
+    try {
+      setCheckingBadge(true);
+      console.log('Fetching badge status from /api/v1/user/badge');
+      
+      const response = await ApiService.get('/api/v1/user/badge');
+      console.log('Badge API Response:', response);
+      
+      // Check if badge is active based on API response
+      // According to the API doc: status true means badge is active, false means expired or no badge
+      if (response && response.status === true) {
+        setBadgeStatus({
+          isVerified: true,
+          badgeType: response.badge?.badge_type || response.badge_type || 'verified',
+          expiryDate: response.badge?.expires_at || response.expires_at,
+          message: response.message || 'Badge Active'
+        });
+      } else {
+        setBadgeStatus({
+          isVerified: false,
+          badgeType: null,
+          expiryDate: null,
+          message: response?.message || 'No active badge'
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching badge status:', error);
+      setBadgeStatus({
+        isVerified: false,
+        badgeType: null,
+        expiryDate: null,
+        message: 'Failed to fetch badge status'
+      });
+    } finally {
+      setCheckingBadge(false);
+    }
+  }, []);
+
+  // Convert User to UserProfile - UPDATED to use badge status
+  const userToProfile = useCallback((userData, badgeData) => ({
     id: userData.id || 0,
     name: userData.name || userData.username || userData.email?.split('@')[0] || 'User',
     email: userData.email || '',
     username: userData.username || userData.name || userData.email?.split('@')[0] || 'user',
-    isVerified: userData.verify_status === "1" || userData.badge_status === "1",
+    isVerified: badgeData.isVerified, // Use API badge status
+    verificationMessage: badgeData.message,
+    badgeType: badgeData.badgeType,
     profilePicture: userData.photo_url ? getProfileUrl(userData.photo_url) : null,
     coverImage: userData.banner ? getBannerUrl(userData.banner) : null,
-    photo_url: userData.photo_url, // Keep raw for updates
-    banner: userData.banner, // Keep raw for updates
+    photo_url: userData.photo_url,
+    banner: userData.banner,
     phoneNumber: userData.phone_number || '',
     shopAddress: userData.shop_address || '',
     businessLocation: userData.business_location || '',
     businessDescription: userData.bio || ''
   }), []);
 
-  // Subscribe to user changes
+  // Subscribe to user changes and fetch badge
   useEffect(() => {
-    const unsubscribe = userService.subscribe((currentUser) => {
+    const unsubscribe = userService.subscribe(async (currentUser) => {
       console.log('ShopSection - User updated:', currentUser);
       if (currentUser) {
-        const profile = userToProfile(currentUser);
+        // Fetch fresh badge status when user changes
+        await fetchBadgeStatus();
+        const profile = userToProfile(currentUser, badgeStatus);
         setUser(profile);
       } else {
         setUser(null);
+        setBadgeStatus({ isVerified: false, badgeType: null, expiryDate: null });
       }
     });
 
-    // Load user from localStorage on mount
-    const currentUser = userService.getUser();
-    if (currentUser) {
-      console.log('ShopSection - User from storage:', currentUser);
-      const profile = userToProfile(currentUser);
-      setUser(profile);
-    }
+    // Load user from localStorage on mount and fetch badge
+    const loadUser = async () => {
+      const currentUser = userService.getUser();
+      if (currentUser) {
+        console.log('ShopSection - User from storage:', currentUser);
+        await fetchBadgeStatus();
+        const profile = userToProfile(currentUser, badgeStatus);
+        setUser(profile);
+      }
+    };
+    
+    loadUser();
 
     return unsubscribe;
-  }, [userToProfile]);
+  }, [userToProfile, fetchBadgeStatus, badgeStatus]);
 
-  // Fetch user products - UPDATED endpoint
+  // Fetch user products
   const fetchUserProducts = useCallback(async () => {
     try {
       console.log('Fetching user products...');
@@ -1115,7 +1167,7 @@ export default function ShopSection() {
     }
   }, []);
 
-  // Update shop image - UPDATED endpoint
+  // Update shop image
   const updateShopImage = async (imageFile, imageType) => {
     if (!user) return;
 
@@ -1127,10 +1179,8 @@ export default function ShopSection() {
       const fieldName = imageType === 'banner' ? 'banner' : 'photo_url';
       formData.append(fieldName, imageFile);
 
-      // Get fresh user data
       const currentUser = userService.getUser();
       
-      // Add other required fields
       formData.append('username', currentUser.username || '');
       formData.append('email', currentUser.email || '');
       formData.append('phone_number', currentUser.phone_number || '');
@@ -1144,6 +1194,8 @@ export default function ShopSection() {
       if (result.status) {
         setSaveMessage(`${imageType === 'banner' ? 'Banner' : 'Profile'} image updated successfully!`);
         await userService.fetchFreshUserData();
+        // Refresh badge status after profile update
+        await fetchBadgeStatus();
       } else {
         throw new Error(result.message || `Failed to update ${imageType} image`);
       }
@@ -1155,6 +1207,7 @@ export default function ShopSection() {
       setShowCameraModal(false);
       setShowProfileModal(false);
       setShowBannerModal(false);
+      setTimeout(() => setSaveMessage(''), 3000);
     }
   };
 
@@ -1182,6 +1235,7 @@ export default function ShopSection() {
       if (result.status) {
         setSaveMessage(`${imageType === 'banner' ? 'Banner' : 'Profile'} image removed successfully!`);
         await userService.fetchFreshUserData();
+        await fetchBadgeStatus();
       } else {
         throw new Error(result.message || `Failed to remove ${imageType} image`);
       }
@@ -1192,6 +1246,7 @@ export default function ShopSection() {
       setIsSaving(false);
       setShowProfileModal(false);
       setShowBannerModal(false);
+      setTimeout(() => setSaveMessage(''), 3000);
     }
   };
 
@@ -1396,6 +1451,19 @@ export default function ShopSection() {
 
     loadUserProducts();
   }, [user, fetchUserProducts]);
+
+  // Refresh badge when verification modal closes
+  const handleVerificationModalClose = async () => {
+    setIsVerificationModalOpen(false);
+    // Refresh badge status after verification
+    await fetchBadgeStatus();
+    // Refresh user data
+    const currentUser = userService.getUser();
+    if (currentUser) {
+      const profile = userToProfile(currentUser, badgeStatus);
+      setUser(profile);
+    }
+  };
 
   if (!user) {
     return (
@@ -1634,14 +1702,20 @@ export default function ShopSection() {
             
             {/* Buttons */}
             <div className="mt-4 md:mt-0 md:ml-auto md:mb-2 flex flex-col sm:flex-row gap-2 justify-center md:justify-end">
-              {!user.isVerified && (
+              {!checkingBadge && !user.isVerified && (
                 <button 
                   onClick={() => setIsVerificationModalOpen(true)} 
                   className="bg-black text-white px-4 py-2 md:px-6 md:py-3 rounded-lg transition-all duration-300 font-semibold shadow-sm flex items-center justify-center gap-2 animate-pulse hover:animate-none hover:bg-gray-800 text-sm md:text-base"
                 >
-                  <FaCheckCircle size={16} />
-                  <span>Verify Now</span>
+                  <FaShieldAlt size={16} />
+                  <span>Get Verified</span>
                 </button>
+              )}
+              {user.isVerified && (
+                <div className="bg-green-100 text-green-800 px-4 py-2 md:px-6 md:py-3 rounded-lg font-semibold flex items-center gap-2 text-sm md:text-base">
+                  <FaCrown className="text-yellow-500" />
+                  <span>Verified {user.badgeType === 'yearly' ? 'Annual' : 'Monthly'} Seller</span>
+                </div>
               )}
               <button 
                 onClick={handleAddProduct}
@@ -1682,11 +1756,19 @@ export default function ShopSection() {
             </div>
             
             <div className="flex flex-wrap gap-2 justify-center md:justify-start">
-              <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs md:text-sm font-medium ${
-                user.isVerified ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-              }`}>
-                {user.isVerified ? '✅ Verified seller' : '❌ Unverified seller'}
-              </span>
+              {!checkingBadge && (
+                <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs md:text-sm font-medium ${
+                  user.isVerified ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                }`}>
+                  {user.isVerified ? '✅ Verified Seller' : '❌ Unverified Seller'}
+                </span>
+              )}
+              {user.isVerified && user.badgeType === 'yearly' && (
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs md:text-sm font-medium bg-yellow-100 text-yellow-800">
+                  <FaCrown className="mr-1" size={12} />
+                  Premium Annual Plan
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -1797,7 +1879,7 @@ export default function ShopSection() {
 
       <VerificationModal
         isOpen={isVerificationModalOpen}
-        onClose={() => setIsVerificationModalOpen(false)}
+        onClose={handleVerificationModalClose}
         user={user}
       />    
     </div>
