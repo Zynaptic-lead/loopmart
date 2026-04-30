@@ -1,4 +1,4 @@
-// ProfileSection.jsx - FIXED with correct file size validation (1MB max)
+// ProfileSection.jsx - FIXED with proper error display
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { FaCamera, FaSave, FaTimes, FaCheckCircle, FaTimesCircle, FaSpinner, FaCrown } from 'react-icons/fa';
 import { MdVerified } from 'react-icons/md';
@@ -28,7 +28,6 @@ const compressImage = (file, maxSizeKB = 1024) => {
         let width = img.width;
         let height = img.height;
         
-        // Calculate new dimensions while maintaining aspect ratio
         const maxWidth = 800;
         const maxHeight = 800;
         
@@ -50,13 +49,10 @@ const compressImage = (file, maxSizeKB = 1024) => {
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0, width, height);
         
-        // Start with 0.8 quality
         let quality = 0.8;
         let compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
         
-        // Function to check size and compress more if needed
         const checkAndCompress = () => {
-          // Convert data URL to blob size estimation (roughly dataURL length * 0.75)
           const estimatedSizeKB = (compressedDataUrl.length * 0.75) / 1024;
           
           if (estimatedSizeKB > maxSizeKB && quality > 0.3) {
@@ -64,7 +60,6 @@ const compressImage = (file, maxSizeKB = 1024) => {
             compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
             checkAndCompress();
           } else {
-            // Convert data URL to blob
             fetch(compressedDataUrl)
               .then(res => res.blob())
               .then(blob => {
@@ -92,6 +87,7 @@ export default function ProfileSection() {
   const [uploadedFile, setUploadedFile] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
+  const [saveMessageType, setSaveMessageType] = useState(''); // 'success', 'error', 'info'
   const [showProfileImageOptions, setShowProfileImageOptions] = useState(false);
   const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -101,6 +97,16 @@ export default function ProfileSection() {
   const [isCompressing, setIsCompressing] = useState(false);
 
   const fileInputRef = useRef(null);
+
+  // Show message helper
+  const showMessage = (message, type = 'info') => {
+    setSaveMessage(message);
+    setSaveMessageType(type);
+    setTimeout(() => {
+      setSaveMessage('');
+      setSaveMessageType('');
+    }, 5000);
+  };
 
   // Fetch badge status from API
   const fetchBadgeStatus = useCallback(async () => {
@@ -238,26 +244,23 @@ export default function ProfileSection() {
     if (!file || !user) return;
 
     if (!file.type.startsWith('image/')) {
-      alert('Please select a valid image file');
+      showMessage('Please select a valid image file', 'error');
       return;
     }
 
-    // Check original file size
     const fileSizeKB = file.size / 1024;
+    
     if (fileSizeKB > 1024) {
-      // Show compression message
       setIsCompressing(true);
-      setSaveMessage('Compressing image... (this may take a moment)');
+      showMessage('Compressing image... (this may take a moment)', 'info');
       
       try {
-        // Compress the image
         const compressedFile = await compressImage(file, 1024);
         const compressedSizeKB = compressedFile.size / 1024;
         console.log(`Original: ${fileSizeKB.toFixed(2)}KB, Compressed: ${compressedSizeKB.toFixed(2)}KB`);
         
         setUploadedFile(compressedFile);
         
-        // Create preview
         const reader = new FileReader();
         reader.onload = () => {
           if (user) {
@@ -266,16 +269,14 @@ export default function ProfileSection() {
         };
         reader.readAsDataURL(compressedFile);
         
-        setSaveMessage(`Image compressed from ${fileSizeKB.toFixed(0)}KB to ${compressedSizeKB.toFixed(0)}KB`);
-        setTimeout(() => setSaveMessage(''), 3000);
+        showMessage(`Image compressed from ${fileSizeKB.toFixed(0)}KB to ${compressedSizeKB.toFixed(0)}KB`, 'success');
       } catch (error) {
         console.error('Compression error:', error);
-        alert('Failed to compress image. Please try a smaller image.');
+        showMessage('Failed to compress image. Please try a smaller image (max 1MB)', 'error');
       } finally {
         setIsCompressing(false);
       }
     } else {
-      // File is already within size limit
       setUploadedFile(file);
       
       const reader = new FileReader();
@@ -286,8 +287,7 @@ export default function ProfileSection() {
       };
       reader.readAsDataURL(file);
       
-      setSaveMessage(`Image selected (${fileSizeKB.toFixed(0)}KB)`);
-      setTimeout(() => setSaveMessage(''), 2000);
+      showMessage(`Image selected (${fileSizeKB.toFixed(0)}KB) - Ready to save`, 'success');
     }
 
     if (e.target) e.target.value = '';
@@ -296,7 +296,7 @@ export default function ProfileSection() {
   const handleSaveProfile = async () => {
     if (!user) return;
     setIsSaving(true);
-    setSaveMessage('');
+    showMessage('Saving profile...', 'info');
 
     try {
       const profileData = {
@@ -314,8 +314,7 @@ export default function ProfileSection() {
         await userService.fetchFreshUserData();
         await fetchBadgeStatus();
         setUploadedFile(null);
-        setSaveMessage('Profile saved successfully!');
-        setTimeout(() => setSaveMessage(''), 3000);
+        showMessage('Profile saved successfully!', 'success');
         
         const updatedUser = userService.getUser();
         if (updatedUser) {
@@ -324,18 +323,24 @@ export default function ProfileSection() {
           setOriginalUser(profile);
         }
       } else {
+        // Display validation errors to the user
         if (result.errors) {
-          const errorMessages = Object.values(result.errors).flat().join(', ');
-          setSaveMessage(errorMessages || result.message || 'Failed to save profile');
+          const errorMessages = Object.values(result.errors).flat();
+          const firstError = errorMessages[0];
+          showMessage(firstError || 'Failed to save profile', 'error');
+          console.error('Validation errors:', result.errors);
         } else {
-          setSaveMessage(result.message || 'Failed to save profile');
+          showMessage(result.message || 'Failed to save profile', 'error');
         }
-        setTimeout(() => setSaveMessage(''), 5000);
       }
     } catch (error) {
       console.error('Profile - Error saving:', error);
-      setSaveMessage(error.message || 'Error saving profile');
-      setTimeout(() => setSaveMessage(''), 5000);
+      // Check if it's a network error
+      if (error.message?.includes('Network') || error.message?.includes('fetch')) {
+        showMessage('Network error. Please check your connection and try again.', 'error');
+      } else {
+        showMessage(error.message || 'Error saving profile. Please try again.', 'error');
+      }
     } finally {
       setIsSaving(false);
     }
@@ -376,13 +381,13 @@ export default function ProfileSection() {
           setOriginalUser(profile);
         }
         setUploadedFile(null);
-        setSaveMessage('Profile picture removed!');
-        setTimeout(() => setSaveMessage(''), 3000);
+        showMessage('Profile picture removed!', 'success');
+      } else {
+        showMessage(result.message || 'Failed to remove profile picture', 'error');
       }
     } catch (error) {
       console.error('Error removing profile picture:', error);
-      setSaveMessage('Failed to remove profile picture');
-      setTimeout(() => setSaveMessage(''), 3000);
+      showMessage('Failed to remove profile picture. Please try again.', 'error');
     } finally {
       setIsSaving(false);
       setShowProfileImageOptions(false);
@@ -406,6 +411,31 @@ export default function ProfileSection() {
       const profile = userToProfile(currentUser);
       setUser(profile);
       setOriginalUser(profile);
+    }
+  };
+
+  // Get message styles based on type
+  const getMessageStyles = () => {
+    switch (saveMessageType) {
+      case 'success':
+        return 'bg-green-50 border border-green-200 text-green-700';
+      case 'error':
+        return 'bg-red-50 border border-red-200 text-red-700';
+      case 'info':
+      default:
+        return 'bg-blue-50 border border-blue-200 text-blue-700';
+    }
+  };
+
+  const getMessageIcon = () => {
+    switch (saveMessageType) {
+      case 'success':
+        return '✅';
+      case 'error':
+        return '❌';
+      case 'info':
+      default:
+        return 'ℹ️';
     }
   };
 
@@ -500,18 +530,13 @@ export default function ProfileSection() {
 
       {/* Profile Form */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 space-y-6">
+        {/* Message Display - FIXED to show errors properly */}
         {saveMessage && (
-          <div className={`p-3 rounded-lg ${
-            saveMessage.includes('successfully') || saveMessage.includes('compressed')
-              ? 'bg-green-50 border border-green-200 text-green-700' 
-              : saveMessage.includes('selected')
-              ? 'bg-blue-50 border border-blue-200 text-blue-700'
-              : 'bg-red-50 border border-red-200 text-red-700'
-          }`}>
-            <p className="text-sm font-medium">
-              {saveMessage.includes('successfully') ? '✅ ' : saveMessage.includes('compressed') ? '📦 ' : saveMessage.includes('selected') ? '📷 ' : '❌ '}
-              {saveMessage}
-            </p>
+          <div className={`p-4 rounded-lg ${getMessageStyles()}`}>
+            <div className="flex items-center">
+              <span className="mr-2">{getMessageIcon()}</span>
+              <p className="text-sm font-medium">{saveMessage}</p>
+            </div>
           </div>
         )}
 
@@ -593,7 +618,7 @@ export default function ProfileSection() {
             disabled={!hasUnsavedChanges || isSaving || isCompressing} 
             className="bg-yellow-500 text-black px-8 py-3 rounded-lg font-semibold hover:bg-yellow-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
           >
-            <FaSave />
+            {isSaving ? <FaSpinner className="animate-spin" /> : <FaSave />}
             <span>{isSaving ? 'Saving...' : 'Save Changes'}</span>
           </button>
         </div>
@@ -615,8 +640,7 @@ export default function ProfileSection() {
               <p className="text-sm text-gray-600">
                 {!checkingBadge && isVerified 
                   ? `${badgeType === 'yearly' ? 'Annual Premium' : 'Monthly'} verified account - trusted by customers.`
-                  : 'Verify your account to build trust and unlock premium features.'
-                }
+                  : 'Verify your account to build trust and unlock premium features.'}
               </p>
             </div>
           </div>
@@ -647,7 +671,7 @@ export default function ProfileSection() {
         user={user} 
       />
 
-      {/* Profile Image Options Modal */}
+      {/* Profile Image Options Modal - FIXED duplicate code */}
       {showProfileImageOptions && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl w-full max-w-md p-6">
@@ -675,15 +699,7 @@ export default function ProfileSection() {
                   className="w-full bg-red-500 text-white py-3 rounded-lg hover:bg-red-600 font-semibold flex items-center justify-center space-x-2 transition-colors"
                 >
                   <FaTimes /> 
-                  <span rounded-lg hover:bg-red-600 font-semibold flex items-center justify-center space-x-2 transition-colors"
-                >
-                  <FaTimes /> 
-                  <span>Remove>Remove Photo</span>
-                </button>
-              )}
-            </div>
-            <p className="text-xs text-gray-500 mt-3 text-center">
-              Images larger than 1MB will be Photo</span>
+                  <span>Remove Photo</span>
                 </button>
               )}
             </div>
