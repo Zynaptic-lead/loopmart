@@ -1,4 +1,4 @@
-// ShopSection.jsx - COMPLETE REWRITE WITH CORRECT BADGE HANDLING
+// ShopSection.jsx - REWRITTEN WITH PROPER BADGE HANDLING
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -567,9 +567,12 @@ export default function ShopSection() {
   const [showBannerModal, setShowBannerModal] = useState(false);
   const [showCameraModal, setShowCameraModal] = useState(false);
   const [currentImageType, setCurrentImageType] = useState('banner');
+  
+  // BADGE STATE - DEFAULT TO FALSE (NOT VERIFIED)
   const [isVerified, setIsVerified] = useState(false);
   const [badgeType, setBadgeType] = useState(null);
   const [checkingBadge, setCheckingBadge] = useState(true);
+  
   const fileInputRef = useRef(null);
 
   // Check mobile
@@ -580,33 +583,46 @@ export default function ShopSection() {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Fetch badge status from API
+  // Fetch badge status from API - STRICT CHECK
   const fetchBadgeStatus = useCallback(async () => {
     try {
       setCheckingBadge(true);
       const response = await ApiService.get('/api/v1/user/badge');
       console.log('Badge API Response:', response);
       
-      // Check if badge is active - API returns { status: true, message: "Active Badge", badge: {...} }
-      if (response && response.status === true && response.badge) {
-        // Check if expired
-        const expiryDate = response.badge.expiry_date;
-        const isExpired = expiryDate ? new Date(expiryDate) < new Date() : false;
-        
-        if (!isExpired) {
-          setIsVerified(true);
-          setBadgeType(response.badge.badge_type || 'monthly');
-          console.log('User is verified with badge type:', response.badge.badge_type);
+      // STRICT CHECK: Only verified if ALL conditions are met
+      // 1. Response exists
+      // 2. status is true (NOT false - false means expired)
+      // 3. badge object exists
+      // 4. badge_type exists
+      // 5. Not expired
+      
+      let isUserVerified = false;
+      let userBadgeType = null;
+      
+      if (response && response.status === true) {
+        if (response.badge && response.badge.badge_type) {
+          const expiryDate = response.badge.expiry_date;
+          const isExpired = expiryDate ? new Date(expiryDate) < new Date() : true;
+          
+          if (!isExpired) {
+            isUserVerified = true;
+            userBadgeType = response.badge.badge_type;
+            console.log('✅ User IS verified with badge type:', userBadgeType);
+          } else {
+            console.log('❌ Badge expired on:', expiryDate);
+          }
         } else {
-          setIsVerified(false);
-          setBadgeType(null);
-          console.log('Badge expired');
+          console.log('❌ No badge or badge_type in response');
         }
       } else {
-        setIsVerified(false);
-        setBadgeType(null);
-        console.log('No active badge');
+        console.log('❌ Response status is not true. Status:', response?.status, 'Message:', response?.message);
       }
+      
+      // Set the state
+      setIsVerified(isUserVerified);
+      setBadgeType(userBadgeType);
+      
     } catch (error) {
       console.error('Error fetching badge:', error);
       setIsVerified(false);
@@ -616,7 +632,7 @@ export default function ShopSection() {
     }
   }, []);
 
-  // Convert user data to profile
+  // Convert user data to profile - NO VERIFICATION HERE
   const userToProfile = useCallback((userData) => ({
     id: userData.id || 0,
     name: userData.name || userData.username || userData.email?.split('@')[0] || 'User',
@@ -630,6 +646,7 @@ export default function ShopSection() {
     coverImage: userData.banner ? getBannerUrl(userData.banner) : null,
     photo_url: userData.photo_url,
     banner: userData.banner
+    // NO isVerified here - use separate state from badge API
   }), []);
 
   // Load user and badge on mount
@@ -639,14 +656,17 @@ export default function ShopSection() {
       console.log('Current user from storage:', currentUser);
       
       if (currentUser) {
-        // First fetch badge status
+        // First fetch badge status from API
         await fetchBadgeStatus();
-        // Then set user profile
+        // Then set user profile (without verification status)
         const profile = userToProfile(currentUser);
         console.log('Created profile:', profile);
         setUser(profile);
       } else {
         setUser(null);
+        // Reset badge state when no user
+        setIsVerified(false);
+        setBadgeType(null);
       }
     };
     
@@ -1048,12 +1068,14 @@ export default function ShopSection() {
             </div>
 
             <div className="mt-4 md:mt-0 md:ml-auto flex flex-col sm:flex-row gap-2">
+              {/* ONLY SHOW GET VERIFIED BUTTON IF NOT CHECKING AND NOT VERIFIED */}
               {!checkingBadge && !isVerified && (
                 <button onClick={() => setIsVerificationModalOpen(true)} className="bg-black text-white px-4 py-2 rounded-lg font-semibold flex items-center gap-2 hover:bg-gray-800">
                   <FaShieldAlt /> Get Verified
                 </button>
               )}
-              {isVerified && (
+              {/* ONLY SHOW VERIFIED BADGE IF VERIFIED */}
+              {!checkingBadge && isVerified && (
                 <div className="bg-green-100 text-green-800 px-4 py-2 rounded-lg font-semibold flex items-center gap-2">
                   <FaCrown className="text-yellow-500" /> Verified {badgeType === 'yearly' ? 'Annual' : 'Monthly'} Seller
                 </div>
@@ -1071,9 +1093,18 @@ export default function ShopSection() {
               {user.phoneNumber && <span className="flex items-center gap-1"><FaPhone size={12} /> {user.phoneNumber}</span>}
               {user.businessLocation && <span className="flex items-center gap-1"><FaMapMarkerAlt size={12} /> {user.businessLocation}</span>}
             </div>
-            <span className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${isVerified ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-              {isVerified ? '✓ Verified Seller' : '✗ Unverified Seller'}
-            </span>
+            {/* VERIFICATION STATUS TEXT - ONLY SHOWS BASED ON API RESPONSE */}
+            {!checkingBadge && (
+              <span className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${isVerified ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                {isVerified ? '✓ Verified Seller' : '✗ Unverified Seller'}
+              </span>
+            )}
+            {checkingBadge && (
+              <div className="inline-flex items-center gap-2">
+                <FaSpinner className="animate-spin text-gray-400" size={12} />
+                <span className="text-xs text-gray-400">Checking verification...</span>
+              </div>
+            )}
           </div>
         </div>
       </div>
