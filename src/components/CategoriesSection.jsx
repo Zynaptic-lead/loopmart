@@ -616,7 +616,7 @@ export default function CategoriesSection() {
 
   return (
     <section className="pt-0 pb-8 md:py-8 bg-gray-50">
-      {/* Heading */}
+      {/* Heading - Desktop buttons only visible on desktop */}
       <div className="max-w-7xl mx-auto px-4">
         <div className="flex items-center justify-between mb-6">
           <div className="text-left">
@@ -626,8 +626,8 @@ export default function CategoriesSection() {
               Showing {filteredProducts.length} of {totalProducts} products
             </p>
           </div>
-          <div className="text-right flex items-center gap-2">
-            {/* Refresh/Randomize Button */}
+          {/* Desktop ONLY buttons - hidden on mobile */}
+          <div className="hidden md:flex text-right items-center gap-2">
             <button
               onClick={refreshProducts}
               className="flex items-center gap-2 bg-yellow-500 text-black px-4 py-2 rounded-lg text-sm hover:bg-yellow-600 transition-all duration-300 shadow-sm hover:scale-105"
@@ -662,12 +662,12 @@ export default function CategoriesSection() {
       </div>
 
       {/* Mobile Only - Fixed Start Selling Button */}
-      <div className="md:hidden fixed bottom-6 right-6 z-40 animate-fade-in">
+      <div className="md:hidden fixed bottom-6 right-6 z-40">
         <div className="relative group">
           <button
             onClick={handleStartSellingClick}
             disabled={subscriptionLoading}
-            className="bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-yellow-500 hover:to-yellow-600 text-black font-bold rounded-full p-4 shadow-2xl transition-all duration-300 transform hover:scale-110 hover:shadow-3xl active:scale-95 flex items-center justify-center animate-bounce-slow disabled:opacity-50 disabled:cursor-not-allowed"
+            className="bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-yellow-500 hover:to-yellow-600 text-black font-bold rounded-full p-4 shadow-2xl transition-all duration-300 transform hover:scale-110 active:scale-95 flex items-center justify-center disabled:opacity-50"
             style={{
               boxShadow: '0 10px 25px rgba(251, 191, 36, 0.5)',
               width: '60px',
@@ -690,7 +690,7 @@ export default function CategoriesSection() {
         </div>
       </div>
 
-      {/* Desktop Layout - UNCHANGED */}
+      {/* DESKTOP LAYOUT - hidden on mobile */}
       <div className="hidden md:flex gap-6 px-4">
         {/* Filter Sidebar */}
         <aside className="w-1/4 bg-white rounded-xl shadow p-5 sticky top-4 h-fit">
@@ -775,13 +775,11 @@ export default function CategoriesSection() {
                     : 'bg-gray-400 opacity-10'
                   }`}></div>
                 </div>
-
                 <div className={`absolute inset-0 rounded-full transition-all duration-500 ${filters.verifiedSeller
                   ? 'bg-green-400 opacity-30 blur-sm scale-110'
                   : 'bg-gray-400 opacity-0'
                 }`}></div>
               </div>
-
               <span className={`ml-2 text-xs font-medium transition-all duration-300 ${filters.verifiedSeller ? 'text-green-600' : 'text-gray-500'}`}>
                 {filters.verifiedSeller ? 'ON' : 'OFF'}
               </span>
@@ -795,8 +793,7 @@ export default function CategoriesSection() {
             Reset Filters
           </button>
 
-          {/* Start Selling Section */}
-          <div className="bg-gradient-to-r from-yellow-400 to-yellow-500 rounded-xl p-4 text-center border-2 border-yellow-300 shadow-lg transform hover:scale-105 transition-all duration-500 hover:shadow-2xl animate-pulse-slow">
+          <div className="bg-gradient-to-r from-yellow-400 to-yellow-500 rounded-xl p-4 text-center border-2 border-yellow-300 shadow-lg transform hover:scale-105 transition-all duration-500 hover:shadow-2xl">
             <Store className="w-8 h-8 mx-auto mb-2 text-black animate-bounce" />
             <h4 className="font-bold text-black text-lg mb-2">Start Selling Today!</h4>
             <p className="text-black text-sm mb-3">
@@ -805,16 +802,16 @@ export default function CategoriesSection() {
             <button
               onClick={handleStartSellingClick}
               disabled={subscriptionLoading}
-              className="bg-black text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-800 transition-all duration-300 w-full transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="bg-black text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-800 transition-all duration-300 w-full transform hover:scale-105 active:scale-95 disabled:opacity-50"
             >
               {subscriptionLoading ? 'Checking...' : 'Get Started'}
             </button>
           </div>
         </aside>
 
-        {/* Main Content Area */}
+        {/* Main Content Area Desktop */}
         <div className="w-3/4">
-          {/* Categories Carousel */}
+          {/* Categories Carousel Desktop */}
           <div className="relative flex items-center mb-6">
             <button
               onClick={() => scroll("left")}
@@ -826,10 +823,7 @@ export default function CategoriesSection() {
             <div
               ref={scrollRef}
               className="flex overflow-x-auto gap-5 scroll-smooth px-10 py-2"
-              style={{
-                scrollbarWidth: 'none',
-                msOverflowStyle: 'none'
-              }}
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
             >
               {categories.map((cat, i) => (
                 <div
@@ -858,7 +852,7 @@ export default function CategoriesSection() {
             </button>
           </div>
 
-          {/* Products Grid */}
+          {/* Products Grid Desktop */}
           <div className="rounded-xl shadow p-6">
             {loading ? (
               <div className="flex justify-center items-center py-12">
@@ -885,7 +879,6 @@ export default function CategoriesSection() {
                   ))}
                 </div>
 
-                {/* Promo Banner */}
                 {showPromoBanner && filteredProducts.length > 0 && (
                   <div className="col-span-full mt-8">
                     <div className="bg-gradient-to-r from-yellow-400 to-yellow-500 rounded-2xl p-8 relative overflow-hidden shadow-2xl transform hover:scale-[1.02] transition-all duration-700 group">
@@ -893,37 +886,22 @@ export default function CategoriesSection() {
                       <div className="relative z-10 flex flex-col md:flex-row items-center justify-between">
                         <div className="text-center md:text-left mb-6 md:mb-0">
                           <div className="flex items-center gap-3 mb-4">
-                            <img
-                              src={logo}
-                              alt="Loopmart"
-                              className="h-12 w-auto filter brightness-0 transition-transform duration-700 group-hover:scale-110"
-                            />
+                            <img src={logo} alt="Loopmart" className="h-12 w-auto filter brightness-0 transition-transform duration-700 group-hover:scale-110" />
                           </div>
-                          <p className="text-black text-base md:text-lg mb-2 font-medium transition-all duration-500 group-hover:text-black/90">
-                            Reach more audience by promoting your Product(s)
-                          </p>
-                          <p className="text-black text-base md:text-lg mb-2 font-medium transition-all duration-500 group-hover:text-black/90">
-                            Get an active badge by becoming a verified seller
-                          </p>
-                          <p className="text-black text-base md:text-lg font-medium transition-all duration-500 group-hover:text-black/90">
-                            and enjoy multiple benefits that comes with being a verified seller
-                          </p>
+                          <p className="text-black text-base md:text-lg mb-2 font-medium">Reach more audience by promoting your Product(s)</p>
+                          <p className="text-black text-base md:text-lg mb-2 font-medium">Get an active badge by becoming a verified seller</p>
+                          <p className="text-black text-base md:text-lg font-medium">and enjoy multiple benefits that comes with being a verified seller</p>
                         </div>
-
                         <div className="flex flex-col items-center">
-                          <div className="relative">
-                            <button
-                              onClick={handleStartSellingClick}
-                              disabled={subscriptionLoading}
-                              className="bg-black text-white font-bold py-3 px-6 rounded-xl shadow-xl transform hover:scale-110 hover:shadow-2xl transition-all duration-500 flex items-center gap-2 text-base group-hover:bg-gray-900 disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              {subscriptionLoading ? 'Checking...' : 'Get Started'}
-                              <ArrowRight className="animate-bounce group-hover:translate-x-2 transition-transform duration-300" size={18} />
-                            </button>
-                          </div>
-                          <p className="text-black/70 text-sm mt-3 text-center font-medium transition-all duration-500 group-hover:text-black/90">
-                            Join thousands of successful sellers today!
-                          </p>
+                          <button
+                            onClick={handleStartSellingClick}
+                            disabled={subscriptionLoading}
+                            className="bg-black text-white font-bold py-3 px-6 rounded-xl shadow-xl transform hover:scale-110 transition-all duration-500 flex items-center gap-2 text-base disabled:opacity-50"
+                          >
+                            {subscriptionLoading ? 'Checking...' : 'Get Started'}
+                            <ArrowRight className="animate-bounce" size={18} />
+                          </button>
+                          <p className="text-black/70 text-sm mt-3 text-center">Join thousands of successful sellers today!</p>
                         </div>
                       </div>
                     </div>
@@ -935,9 +913,9 @@ export default function CategoriesSection() {
         </div>
       </div>
 
-      {/* Mobile Layout - COMPLETELY REDESIGNED */}
+      {/* MOBILE LAYOUT - Only visible on mobile, no duplicate buttons */}
       <div className="block md:hidden px-3 mt-4">
-        {/* Categories Carousel - stays as carousel */}
+        {/* Categories Carousel - 2 slides visible */}
         <div className="relative flex items-center mb-4">
           <button
             onClick={() => scroll("left")}
@@ -955,15 +933,10 @@ export default function CategoriesSection() {
               <div
                 key={i}
                 onClick={() => handleCategorySelect(cat.name)}
-                className={`min-w-[90px] h-24 rounded-xl border cursor-pointer bg-white shadow-sm flex flex-col justify-center items-center text-center transition-all duration-300 ${selectedCategory === cat.name ? "border-yellow-400 border-2 bg-yellow-50" : "border-gray-100"} ${cat.color || ""}`}
+                className={`min-w-[calc(50%-6px)] w-[calc(50%-6px)] h-24 rounded-xl border cursor-pointer bg-white shadow-sm flex flex-col justify-center items-center text-center transition-all duration-300 ${selectedCategory === cat.name ? "border-yellow-400 border-2 bg-yellow-50" : "border-gray-100"} ${cat.color || ""}`}
               >
                 {cat.img && (
-                  <img
-                    src={cat.img}
-                    alt={cat.name}
-                    className="w-10 h-10 object-contain mb-1"
-                    loading="lazy"
-                  />
+                  <img src={cat.img} alt={cat.name} className="w-10 h-10 object-contain mb-1" loading="lazy" />
                 )}
                 <h3 className="font-medium text-gray-700 text-xs">{cat.name}</h3>
               </div>
@@ -978,7 +951,7 @@ export default function CategoriesSection() {
           </button>
         </div>
 
-        {/* Refresh & Location Row */}
+        {/* Mobile Action Row - Shuffle, Location, Reset */}
         <div className="flex items-center justify-between gap-2 mb-4">
           <button
             onClick={refreshProducts}
@@ -1009,7 +982,7 @@ export default function CategoriesSection() {
           </button>
         </div>
 
-        {/* Product Condition Filters - VISIBLE INLINE, NO DROPDOWN */}
+        {/* Product Condition Filters - Visible inline */}
         <div className="bg-white rounded-xl p-3 mb-4 border border-gray-200">
           <div className="flex items-center gap-2 mb-2">
             <span className="text-gray-700 text-sm font-medium">Condition:</span>
@@ -1050,7 +1023,7 @@ export default function CategoriesSection() {
           </div>
         </div>
 
-        {/* Products Grid - 2 COLUMNS ON MOBILE */}
+        {/* Products Grid - 2 columns on mobile */}
         <div className="rounded-xl">
           {loading ? (
             <div className="flex justify-center items-center py-8">
@@ -1059,9 +1032,7 @@ export default function CategoriesSection() {
           ) : filteredProducts.length === 0 ? (
             <div className="text-center py-8">
               <p className="text-gray-500 text-sm">No products found.</p>
-              <button onClick={clearFilters} className="mt-3 text-red-500 text-sm font-medium">
-                Reset filters
-              </button>
+              <button onClick={clearFilters} className="mt-3 text-red-500 text-sm font-medium">Reset filters</button>
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-3">
@@ -1084,12 +1055,8 @@ export default function CategoriesSection() {
                 <div className="flex items-center gap-2 justify-center mb-2">
                   <img src={logo} alt="Loopmart" className="h-8 w-auto filter brightness-0" />
                 </div>
-                <p className="text-black font-medium text-xs mb-1">
-                  Promote your Product(s)
-                </p>
-                <p className="text-black text-[11px] mb-3">
-                  Get verified & enjoy benefits
-                </p>
+                <p className="text-black font-medium text-xs mb-1">Promote your Product(s)</p>
+                <p className="text-black text-[11px] mb-3">Get verified & enjoy benefits</p>
                 <button
                   onClick={handleStartSellingClick}
                   disabled={subscriptionLoading}
@@ -1106,20 +1073,20 @@ export default function CategoriesSection() {
       {/* Location Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-xl w-[90%] max-w-md p-5 transform">
+          <div className="bg-white rounded-xl shadow-xl w-[90%] max-w-md p-5">
             <div className="flex justify-between items-center mb-3">
               <h3 className="text-lg font-semibold flex items-center gap-2">
-                <MapPin className="text-red-500 animate-bounce" /> Choose Location
+                <MapPin className="text-red-500" /> Choose Location
               </h3>
-              <button onClick={() => setIsModalOpen(false)} className="hover:scale-110 transition-transform duration-300">
-                <X size={20} className="text-gray-600 hover:text-red-500 transition-colors duration-300" />
+              <button onClick={() => setIsModalOpen(false)} className="hover:scale-110 transition-transform">
+                <X size={20} className="text-gray-600 hover:text-red-500" />
               </button>
             </div>
 
             <input
               type="text"
               placeholder="Search state..."
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition-all duration-500 hover:scale-105"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-yellow-400"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -1130,7 +1097,7 @@ export default function CategoriesSection() {
                   setSelectedState("Location");
                   setIsModalOpen(false);
                 }}
-                className="w-full text-left px-3 py-2 rounded-lg hover:bg-yellow-100 text-sm text-gray-700 transition-all duration-300 hover:scale-105"
+                className="w-full text-left px-3 py-2 rounded-lg hover:bg-yellow-100 text-sm text-gray-700"
               >
                 All Locations
               </button>
@@ -1141,7 +1108,7 @@ export default function CategoriesSection() {
                     setSelectedState(state);
                     setIsModalOpen(false);
                   }}
-                  className="w-full text-left px-3 py-2 rounded-lg hover:bg-yellow-100 text-sm text-gray-700 transition-all duration-300 hover:scale-105"
+                  className="w-full text-left px-3 py-2 rounded-lg hover:bg-yellow-100 text-sm text-gray-700"
                 >
                   {state}
                 </button>
