@@ -14,7 +14,8 @@ import {
   FaChevronRight,
   FaTimes,
   FaStar,
-  FaUser
+  FaUser,
+  FaHeadset  // ADD THIS - Support icon
 } from 'react-icons/fa';
 import DeleteAccountModal from './DeleteAccountModal';
 
@@ -28,6 +29,7 @@ export default function DashboardSidebar({ isOpen, onClose, onLinkClick, activeL
     { name: 'Ads', icon: FaAd },
     { name: 'Wallet', icon: FaWallet },
     { name: 'Review', icon: FaStar },
+    { name: 'Support', icon: FaHeadset },  // ADD THIS LINE - Support menu item
     { name: 'Privacy Policy', icon: FaShieldAlt },
     { name: 'Refer Friends', icon: FaUserFriends },
     { name: 'Delete Account', icon: FaTrash },

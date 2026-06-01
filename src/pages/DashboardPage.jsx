@@ -8,6 +8,7 @@ import LearnSection from '../components/dashboard/LearnSection';
 import ReviewSection from '../components/dashboard/ReviewSection';
 import PrivacyPolicySection from '../components/dashboard/PrivacyPolicySection';
 import ReferFriendsSection from '../components/dashboard/ReferFriendsSection';
+import SupportSection from '../components/dashboard/SupportSection'; // ADD THIS IMPORT
 import { MdOutlineWatchLater } from "react-icons/md";
 
 export default function DashboardPage() {
@@ -45,6 +46,8 @@ export default function DashboardPage() {
         return <ReferFriendsSection />;
       case 'Privacy Policy':
         return <PrivacyPolicySection />;
+      case 'Support':  // ADD THIS CASE
+        return <SupportSection />;
       default:
         return <ComingSoonSection sectionName={activeSection} />;
     }
