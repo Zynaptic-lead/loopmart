@@ -73,7 +73,8 @@ export default function PWAInstallButton() {
             </div>
             <div className="p-4 md:p-6">
               <p className="text-gray-700 mb-4">Do you want to install LoopMart app on your device?</p>
-              <p className="text-sm text-gray-500">Get faster access, offline support, and a better experience.</p>
+              <p className="text-sm text-gray-500">Install Loopmart on your phone to get faster access, offline support, and a better experience</p>
+              <p className="text-sm text-gray-500">We want to strongly suggest rather than ask/request.</p>
             </div>
             <div className="flex gap-3 p-4 md:p-6 border-t bg-gray-50 rounded-b-xl">
               <button onClick={handleCancelInstall} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100">
