@@ -66,15 +66,15 @@ export default function PWAInstallButton() {
         <div className="fixed inset-0 bg-black bg-opacity-50 z-[100] flex items-center justify-center p-4">
           <div className="bg-white rounded-xl max-w-md w-full">
             <div className="flex items-center justify-between p-4 md:p-6 border-b">
-              <h2 className="text-lg md:text-xl font-bold text-gray-900">Install LoopMart</h2>
+              <h2 className="text-lg md:text-xl font-bold text-gray-900">Install LoopMart On Your Device</h2>
               <button onClick={handleCancelInstall} className="text-gray-400 hover:text-gray-600">
                 <FaTimes size={20} />
               </button>
             </div>
             <div className="p-4 md:p-6">
-              <p className="text-gray-700 mb-4">Do you want to install LoopMart app on your device?</p>
-              <p className="text-sm text-gray-500">Install Loopmart on your phone to get faster access, offline support, and a better experience</p>
-              <p className="text-sm text-gray-500">We want to strongly suggest rather than ask/request.</p>
+          
+              <p className="text-sm text-gray-500">To get faster access, better support and a better experience.</p>
+             
             </div>
             <div className="flex gap-3 p-4 md:p-6 border-t bg-gray-50 rounded-b-xl">
               <button onClick={handleCancelInstall} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100">
