@@ -4,38 +4,32 @@ import { FaDownload, FaTimes, FaCheck } from 'react-icons/fa';
 
 export default function PWAInstallButton() {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
-  const [showButton, setShowButton] = useState(false);
-  const [isInstalled, setIsInstalled] = useState(false);
-  const [showBounce, setShowBounce] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [showBounce, setShowBounce] = useState(true);
 
   useEffect(() => {
+    // Check if app is already installed - hide button if installed
     const isAppInstalled = window.matchMedia('(display-mode: standalone)').matches;
-    setIsInstalled(isAppInstalled);
-
+    
     if (isAppInstalled) {
-      setShowButton(false);
-      return;
+      return; // Don't show button if already installed as app
     }
 
+    // Listen for beforeinstallprompt event
     const handleBeforeInstallPrompt = (e) => {
       e.preventDefault();
       setDeferredPrompt(e);
-      setShowButton(true);
-      
-      setTimeout(() => {
-        setShowBounce(false);
-      }, 10000);
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 
+    // Stop bouncing after 10 seconds
+    setTimeout(() => {
+      setShowBounce(false);
+    }, 10000);
+
+    // Listen for app installed event
     const handleAppInstalled = () => {
-      setIsInstalled(true);
-      setShowButton(false);
-      setDeferredPrompt(null);
-      setShowModal(false);
-      
       window.dispatchEvent(new CustomEvent('show-toast', {
         detail: {
           type: 'success',
@@ -65,7 +59,7 @@ export default function PWAInstallButton() {
       const { outcome } = await deferredPrompt.userChoice;
       
       if (outcome === 'accepted') {
-        setShowButton(false);
+        // Button will hide if installed
       }
       setDeferredPrompt(null);
     }
@@ -75,12 +69,14 @@ export default function PWAInstallButton() {
     setShowModal(false);
   };
 
-  if (!showButton || isInstalled) return null;
+  // Check if already installed as PWA app
+  const isAppInstalled = window.matchMedia('(display-mode: standalone)').matches;
+  if (isAppInstalled) return null;
 
   return (
     <>
-      {/* Download Button - above scroll button on right side */}
-      <div className="fixed bottom-24 right-4 z-50 md:right-8">
+      {/* Download Button - Always visible on right side */}
+      <div className="fixed bottom-40 right-4 z-50 md:right-8">
         <button
           onClick={handleInstallClick}
           className={`bg-yellow-500 hover:bg-yellow-600 text-white rounded-full p-3 md:p-4 shadow-lg transition-all duration-300 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 group relative ${
