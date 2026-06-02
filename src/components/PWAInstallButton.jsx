@@ -8,14 +8,11 @@ export default function PWAInstallButton() {
   const [showBounce, setShowBounce] = useState(true);
 
   useEffect(() => {
-    // Check if app is already installed - hide button if installed
+    // Hide button only if already installed as app
     const isAppInstalled = window.matchMedia('(display-mode: standalone)').matches;
-    
-    if (isAppInstalled) {
-      return; // Don't show button if already installed as app
-    }
+    if (isAppInstalled) return;
 
-    // Listen for beforeinstallprompt event
+    // Listen for install prompt
     const handleBeforeInstallPrompt = (e) => {
       e.preventDefault();
       setDeferredPrompt(e);
@@ -24,58 +21,30 @@ export default function PWAInstallButton() {
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 
     // Stop bouncing after 10 seconds
-    setTimeout(() => {
-      setShowBounce(false);
-    }, 10000);
+    setTimeout(() => setShowBounce(false), 10000);
 
-    // Listen for app installed event
-    const handleAppInstalled = () => {
-      window.dispatchEvent(new CustomEvent('show-toast', {
-        detail: {
-          type: 'success',
-          title: 'Success! 🎉',
-          message: 'LoopMart has been installed on your device'
-        }
-      }));
-    };
-
-    window.addEventListener('appinstalled', handleAppInstalled);
-
-    return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-      window.removeEventListener('appinstalled', handleAppInstalled);
-    };
+    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
   }, []);
 
-  const handleInstallClick = () => {
-    setShowModal(true);
-  };
-
+  const handleInstallClick = () => setShowModal(true);
+  
   const handleConfirmInstall = async () => {
     setShowModal(false);
-    
     if (deferredPrompt) {
       deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      
-      if (outcome === 'accepted') {
-        // Button will hide if installed
-      }
+      await deferredPrompt.userChoice;
       setDeferredPrompt(null);
     }
   };
 
-  const handleCancelInstall = () => {
-    setShowModal(false);
-  };
+  const handleCancelInstall = () => setShowModal(false);
 
-  // Check if already installed as PWA app
-  const isAppInstalled = window.matchMedia('(display-mode: standalone)').matches;
-  if (isAppInstalled) return null;
+  // Hide if already installed
+  if (window.matchMedia('(display-mode: standalone)').matches) return null;
 
   return (
     <>
-      {/* Download Button - Always visible on right side */}
+      {/* Download Button - Always visible */}
       <div className="fixed bottom-40 right-4 z-50 md:right-8">
         <button
           onClick={handleInstallClick}
@@ -107,10 +76,10 @@ export default function PWAInstallButton() {
               <p className="text-sm text-gray-500">Get faster access, offline support, and a better experience.</p>
             </div>
             <div className="flex gap-3 p-4 md:p-6 border-t bg-gray-50 rounded-b-xl">
-              <button onClick={handleCancelInstall} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors">
+              <button onClick={handleCancelInstall} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100">
                 No, Cancel
               </button>
-              <button onClick={handleConfirmInstall} className="flex-1 px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors flex items-center justify-center gap-2">
+              <button onClick={handleConfirmInstall} className="flex-1 px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 flex items-center justify-center gap-2">
                 <FaCheck size={16} />
                 Yes, Install
               </button>
