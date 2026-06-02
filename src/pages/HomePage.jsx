@@ -5,6 +5,7 @@ import Header from "../components/Header";
 import BannerCarousel from "../components/BannerCarousel";
 import CategoriesSection from "../components/CategoriesSection";
 import Footer from "../components/Footer";
+import PWAInstallButton from "../components/PWAInstallButton"; // ADD THIS
 import logo from "../assets/logo.png";
 
 export default function HomePage() {
@@ -25,7 +26,6 @@ export default function HomePage() {
       setToastMessage({ type, message, title });
       setShowToast(true);
       
-      // Auto hide after 3 seconds
       setTimeout(() => {
         setShowToast(false);
       }, 3000);
@@ -41,7 +41,6 @@ export default function HomePage() {
   // Listen for scroll events to show/hide scroll button
   useEffect(() => {
     const handleScroll = () => {
-      // Show button when scrolled down 300px
       if (window.scrollY > 300) {
         setShowScrollButton(true);
       } else {
@@ -51,13 +50,11 @@ export default function HomePage() {
 
     window.addEventListener('scroll', handleScroll);
     
-    // Cleanup
     return () => {
       window.removeEventListener('scroll', handleScroll);
     };
   }, []);
 
-  // Scroll to top function
   const scrollToTop = () => {
     window.scrollTo({
       top: 0,
@@ -65,7 +62,6 @@ export default function HomePage() {
     });
   };
 
-  // Simple Toast Component
   const Toast = () => {
     if (!showToast) return null;
 
@@ -116,7 +112,6 @@ export default function HomePage() {
     );
   };
 
-  // Scroll to Top Button Component
   const ScrollToTopButton = () => {
     if (!showScrollButton) return null;
 
@@ -147,7 +142,6 @@ export default function HomePage() {
     <div className="min-h-screen flex flex-col">
       <Header onModalStateChange={setIsAnyModalActive} />
       
-      {/* Main content with proper spacing */}
       <main className="flex-1 bg-gray-50 pt-16">
         <BannerCarousel />
         <CategoriesSection />
@@ -156,8 +150,8 @@ export default function HomePage() {
       <Footer />
       <Toast />
       <ScrollToTopButton />
+      <PWAInstallButton /> {/* ADD THIS - PWA Install Button */}
       
-      {/* Add CSS animation */}
       <style>{`
         @keyframes slide-in {
           from {
@@ -173,7 +167,6 @@ export default function HomePage() {
           animation: slide-in 0.3s ease-out;
         }
         
-        /* Custom bounce animation */
         @keyframes custom-bounce {
           0%, 100% {
             transform: translateY(0);

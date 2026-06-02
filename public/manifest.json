@@ -1,0 +1,19 @@
+{
+  "name": "LoopMart - Buy and Sell in Nigeria",
+  "short_name": "LoopMart",
+  "description": "Nigeria's fastest growing online marketplace. Buy and sell gadgets, vehicles, houses, fashion items, and more.",
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#eab308",
+  "background_color": "#ffffff",
+  "orientation": "portrait",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/icons/loopmart-logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
