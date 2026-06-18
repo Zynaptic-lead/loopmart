@@ -14,6 +14,9 @@ export default function SupportSection() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // Use the existing VITE_API_URL from your environment
+  const API_URL = import.meta.env.VITE_API_URL || 'https://loopmart.ng/api';
+
   const handleChange = (e) => {
     setFormData({
       ...formData,
@@ -28,8 +31,8 @@ export default function SupportSection() {
     setError('');
 
     try {
-      // Use the full URL to your main domain
-      const response = await fetch('https://loopmart.ng/api/support', {
+      // VITE_API_URL already includes /api, so just append /support
+      const response = await fetch(`${API_URL}/support`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
