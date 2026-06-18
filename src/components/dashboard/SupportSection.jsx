@@ -19,7 +19,6 @@ export default function SupportSection() {
       ...formData,
       [e.target.name]: e.target.value
     });
-    // Clear error when user types
     if (error) setError('');
   };
 
@@ -29,10 +28,12 @@ export default function SupportSection() {
     setError('');
 
     try {
-      const response = await fetch('/api/support', {
+      // Use the full URL to your main domain
+      const response = await fetch('https://loopmart.ng/api/support', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
           'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
         },
         body: JSON.stringify(formData)
@@ -43,14 +44,13 @@ export default function SupportSection() {
       if (response.ok && data.success) {
         setIsSubmitted(true);
         setFormData({ name: '', email: '', subject: '', message: '' });
-        // Auto-hide success message after 8 seconds
         setTimeout(() => setIsSubmitted(false), 8000);
       } else {
         setError(data.message || 'Failed to send message. Please try again.');
       }
     } catch (error) {
       console.error('Support form error:', error);
-      setError('Network error. Please check your connection and try again.');
+      setError('Unable to send message. Please try again or contact us directly.');
     } finally {
       setIsLoading(false);
     }
@@ -114,7 +114,6 @@ export default function SupportSection() {
           Send us a message
         </h2>
         
-        {/* Success Message */}
         {isSubmitted && (
           <div className="mb-4 bg-green-50 border border-green-200 text-green-700 p-4 rounded-lg flex items-start gap-3">
             <MdCheckCircle className="text-xl mt-0.5 flex-shrink-0" />
@@ -128,7 +127,6 @@ export default function SupportSection() {
           </div>
         )}
 
-        {/* Error Message */}
         {error && (
           <div className="mb-4 bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg flex items-start gap-3">
             <MdError className="text-xl mt-0.5 flex-shrink-0" />
@@ -204,7 +202,6 @@ export default function SupportSection() {
           </button>
         </form>
 
-        {/* Additional note */}
         <div className="mt-4 p-3 bg-gray-50 rounded-lg text-sm text-gray-600">
           <p>💡 We'll respond to your email within 24 hours. Please check your spam folder if you don't see our reply.</p>
         </div>
