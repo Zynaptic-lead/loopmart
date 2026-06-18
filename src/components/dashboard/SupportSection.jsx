@@ -14,7 +14,6 @@ export default function SupportSection() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Use the existing VITE_API_URL from your environment
   const API_URL = import.meta.env.VITE_API_URL || 'https://loopmart.ng/api';
 
   const handleChange = (e) => {
@@ -31,7 +30,6 @@ export default function SupportSection() {
     setError('');
 
     try {
-      // VITE_API_URL already includes /api, so just append /support
       const response = await fetch(`${API_URL}/support`, {
         method: 'POST',
         headers: {
@@ -86,8 +84,8 @@ export default function SupportSection() {
           <MdEmail className="text-3xl text-yellow-500 mx-auto mb-3" />
           <h3 className="font-semibold mb-2">Email Support</h3>
           <p className="text-sm text-gray-600 mb-3">Response within 24 hours</p>
-          <a href="mailto:support@loopmart.ng" className="text-yellow-600 text-sm hover:underline">
-            support@loopmart.ng
+          <a href="mailto:ceresensetech@gmail.com" className="text-yellow-600 text-sm hover:underline">
+            ceresensetech@gmail.com
           </a>
         </div>
         
@@ -137,7 +135,7 @@ export default function SupportSection() {
               <p className="font-semibold">Oops! Something went wrong</p>
               <p className="text-sm mt-1">{error}</p>
               <p className="text-sm mt-1">
-                You can also reach us directly via <a href="mailto:support@loopmart.ng" className="text-red-600 underline">support@loopmart.ng</a> or WhatsApp.
+                You can also reach us directly via <a href="mailto:ceresensetech@gmail.com" className="text-red-600 underline">ceresensetech@gmail.com</a> or WhatsApp.
               </p>
             </div>
           </div>
