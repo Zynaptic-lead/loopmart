@@ -123,6 +123,9 @@ const features = [
   },
 ];
 
+// ==============================================
+// PAYMENT MODAL COMPONENT
+// ==============================================
 const PaymentModal = ({ isOpen, onClose, plan, onConfirm, processing }) => {
   if (!isOpen) return null;
 
@@ -202,6 +205,9 @@ const PaymentModal = ({ isOpen, onClose, plan, onConfirm, processing }) => {
   );
 };
 
+// ==============================================
+// LOGIN PROMPT MODAL COMPONENT
+// ==============================================
 const LoginPromptModal = ({ isOpen, onClose, onLogin, onSignup }) => {
   if (!isOpen) return null;
 
@@ -248,6 +254,9 @@ const LoginPromptModal = ({ isOpen, onClose, onLogin, onSignup }) => {
   );
 };
 
+// ==============================================
+// MAIN PRICING PAGE COMPONENT
+// ==============================================
 export default function PricingPage() {
   const [activeFAQ, setActiveFAQ] = useState(null);
   const [processingPlan, setProcessingPlan] = useState(null);
@@ -262,6 +271,9 @@ export default function PricingPage() {
   
   const { hasSubscription, setSubscription, checkSubscription } = useSubscription();
 
+  // ==============================================
+  // EFFECTS
+  // ==============================================
   useEffect(() => {
     checkSubscription();
   }, [checkSubscription]);
@@ -276,79 +288,9 @@ export default function PricingPage() {
     }
   }, [searchParams]);
 
-  const verifyPayment = async (reference) => {
-    setVerifyingPayment(true);
-    
-    try {
-        toast?.info('Verifying your payment...');
-        
-        const token = getToken();
-        
-        if (!token) {
-            toast?.error('Session expired. Please login again.');
-            window.location.href = '/login';
-            return;
-        }
-        
-        // Check subscription status after payment
-        const response = await fetch(`${API_URL}/v1/subscription/status`, {
-            method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
-            }
-        });
-        
-        const data = await response.json();
-        console.log('Subscription status after payment:', data);
-        
-        if (data.status && data.data?.active) {
-            toast?.success('Payment successful! Your subscription is now active.');
-            const expiryDate = data.data.expires_at ? new Date(data.data.expires_at) : null;
-            setSubscription(true, expiryDate);
-            window.location.href = '/start-selling';
-        } else {
-            toast?.info('Payment completed. Activating your subscription...');
-            
-            // Retry after 3 seconds
-            setTimeout(async () => {
-                try {
-                    const retryResponse = await fetch(`${API_URL}/v1/subscription/status`, {
-                        method: 'GET',
-                        headers: {
-                            'Authorization': `Bearer ${token}`,
-                            'Accept': 'application/json',
-                            'Content-Type': 'application/json'
-                        }
-                    });
-                    const retryData = await retryResponse.json();
-                    
-                    if (retryData.status && retryData.data?.active) {
-                        toast?.success('Subscription activated! Redirecting...');
-                        const expiryDate = retryData.data.expires_at ? new Date(retryData.data.expires_at) : null;
-                        setSubscription(true, expiryDate);
-                        window.location.href = '/start-selling';
-                    } else {
-                        toast?.warning('Subscription activation in progress. Redirecting...');
-                        window.location.href = '/start-selling';
-                    }
-                } catch (err) {
-                    console.error('Retry error:', err);
-                    window.location.href = '/start-selling';
-                }
-            }, 3000);
-        }
-    } catch (error) {
-        console.error('Verification error:', error);
-        toast?.error('Failed to verify payment. Please contact support.');
-        window.location.href = '/start-selling';
-    } finally {
-        setVerifyingPayment(false);
-        window.history.replaceState({}, document.title, window.location.pathname);
-    }
-};
-
+  // ==============================================
+  // HELPER FUNCTIONS
+  // ==============================================
   const getToken = () => {
     return localStorage.getItem('loopmart_token') || localStorage.getItem('auth_token');
   };
@@ -362,19 +304,91 @@ export default function PricingPage() {
     }
   };
 
-  const scrollToPlans = () => {
-    document.getElementById('pricing-plans')?.scrollIntoView({ 
-      behavior: 'smooth' 
-    });
-    setMobileMenuOpen(false);
-  };
-
   const isUserLoggedIn = () => {
     const token = getToken();
     const user = getUserData();
     return !!token && !!user;
   };
 
+  // ==============================================
+  // VERIFY PAYMENT FUNCTION
+  // ==============================================
+  const verifyPayment = async (reference) => {
+    setVerifyingPayment(true);
+    
+    try {
+      toast?.info('Verifying your payment...');
+      
+      const token = getToken();
+      
+      if (!token) {
+        toast?.error('Session expired. Please login again.');
+        window.location.href = '/login';
+        return;
+      }
+      
+      // Check subscription status after payment - GET request to /v1/subscription/status
+      const response = await fetch(`${API_URL}/v1/subscription/status`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      const data = await response.json();
+      console.log('Subscription status after payment:', data);
+      
+      if (data.status && data.data?.active) {
+        toast?.success('Payment successful! Your subscription is now active.');
+        const expiryDate = data.data.expires_at ? new Date(data.data.expires_at) : null;
+        setSubscription(true, expiryDate);
+        window.location.href = '/start-selling';
+      } else {
+        toast?.info('Payment completed. Activating your subscription...');
+        
+        // Retry after 3 seconds
+        setTimeout(async () => {
+          try {
+            const retryResponse = await fetch(`${API_URL}/v1/subscription/status`, {
+              method: 'GET',
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+              }
+            });
+            const retryData = await retryResponse.json();
+            
+            if (retryData.status && retryData.data?.active) {
+              toast?.success('Subscription activated! Redirecting...');
+              const expiryDate = retryData.data.expires_at ? new Date(retryData.data.expires_at) : null;
+              setSubscription(true, expiryDate);
+              window.location.href = '/start-selling';
+            } else {
+              toast?.warning('Subscription activation in progress. Redirecting...');
+              window.location.href = '/start-selling';
+            }
+          } catch (err) {
+            console.error('Retry error:', err);
+            window.location.href = '/start-selling';
+          }
+        }, 3000);
+      }
+    } catch (error) {
+      console.error('Verification error:', error);
+      toast?.error('Failed to verify payment. Please contact support.');
+      window.location.href = '/start-selling';
+    } finally {
+      setVerifyingPayment(false);
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  };
+
+  // ==============================================
+  // HANDLE PLAN SELECTION
+  // ==============================================
   const handlePlanSelection = (plan) => {
     setSelectedPlan(plan);
     
@@ -386,68 +400,75 @@ export default function PricingPage() {
     }
   };
 
+  // ==============================================
+  // HANDLE CONFIRM PAYMENT
+  // ==============================================
   const handleConfirmPayment = async () => {
     if (!selectedPlan) return;
     
     setProcessingPlan(selectedPlan.id);
     
     try {
-        const token = getToken();
-        
-        if (!token) {
-            toast?.error('Authentication failed. Please login again.');
-            setShowPaymentModal(false);
-            setShowLoginModal(true);
-            return;
-        }
-
-        const requestBody = {
-            interval: selectedPlan.interval
-        };
-        
-        console.log('Sending request to:', `${API_URL}/v1/subscription`);
-        console.log('Request body:', requestBody);
-
-        const response = await fetch(`${API_URL}/v1/subscription`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(requestBody)
-        });
-
-        const data = await response.json();
-        console.log('API Response:', data);
-
-        // Check if the response is successful (handles both 'status' and 'success' fields)
-        const isSuccess = data.status === true || data.success === true;
-        
-        if (isSuccess && data.data?.authorization_url) {
-            toast?.success('Transaction initialized! Redirecting to payment...');
-            setShowPaymentModal(false);
-            // Store reference for verification
-            if (data.data.reference) {
-                sessionStorage.setItem('payment_reference', data.data.reference);
-            }
-            // Redirect to Paystack payment page
-            window.location.href = data.data.authorization_url;
-        } else {
-            // Handle error response
-            const errorMessage = data.message || data.error || 'Failed to initialize subscription. Please try again.';
-            toast?.error(errorMessage);
-            setShowPaymentModal(false);
-        }
-    } catch (error) {
-        console.error('Network error:', error);
-        toast?.error('Network error. Please check your connection and try again.');
+      const token = getToken();
+      
+      if (!token) {
+        toast?.error('Authentication failed. Please login again.');
         setShowPaymentModal(false);
-    } finally {
-        setProcessingPlan(null);
-    }
-};
+        setShowLoginModal(true);
+        return;
+      }
 
+      const requestBody = {
+        interval: selectedPlan.interval
+      };
+      
+      console.log('Sending request to:', `${API_URL}/v1/subscription`);
+      console.log('Request body:', requestBody);
+
+      // POST request to /v1/subscription to initialize payment
+      const response = await fetch(`${API_URL}/v1/subscription`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestBody)
+      });
+
+      const data = await response.json();
+      console.log('API Response:', data);
+
+      // Check if the response is successful (handles both 'status' and 'success' fields)
+      const isSuccess = data.status === true || data.success === true;
+      
+      if (isSuccess && data.data?.authorization_url) {
+        toast?.success('Transaction initialized! Redirecting to payment...');
+        setShowPaymentModal(false);
+        // Store reference for verification
+        if (data.data.reference) {
+          sessionStorage.setItem('payment_reference', data.data.reference);
+        }
+        // Redirect to Paystack payment page
+        window.location.href = data.data.authorization_url;
+      } else {
+        // Handle error response
+        const errorMessage = data.message || data.error || 'Failed to initialize subscription. Please try again.';
+        toast?.error(errorMessage);
+        setShowPaymentModal(false);
+      }
+    } catch (error) {
+      console.error('Network error:', error);
+      toast?.error('Network error. Please check your connection and try again.');
+      setShowPaymentModal(false);
+    } finally {
+      setProcessingPlan(null);
+    }
+  };
+
+  // ==============================================
+  // HANDLE START SELLING
+  // ==============================================
   const handleStartSelling = () => {
     const isSubscribed = hasSubscription;
     
@@ -460,6 +481,19 @@ export default function PricingPage() {
     setMobileMenuOpen(false);
   };
 
+  // ==============================================
+  // SCROLL TO PLANS
+  // ==============================================
+  const scrollToPlans = () => {
+    document.getElementById('pricing-plans')?.scrollIntoView({ 
+      behavior: 'smooth' 
+    });
+    setMobileMenuOpen(false);
+  };
+
+  // ==============================================
+  // LOADING STATE
+  // ==============================================
   if (verifyingPayment) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center p-4">
@@ -471,6 +505,9 @@ export default function PricingPage() {
     );
   }
 
+  // ==============================================
+  // SUBSCRIPTION STATUS BANNER
+  // ==============================================
   const SubscriptionStatusBanner = () => {
     if (!hasSubscription) return null;
     
@@ -495,6 +532,9 @@ export default function PricingPage() {
     );
   };
 
+  // ==============================================
+  // RENDER
+  // ==============================================
   return (
     <div className="min-h-screen bg-white">
       <LoginPromptModal
