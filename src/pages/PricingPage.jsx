@@ -280,67 +280,74 @@ export default function PricingPage() {
     setVerifyingPayment(true);
     
     try {
-      toast?.info('Verifying your payment...');
-      
-      const token = getToken();
-      
-      if (!token) {
-        toast?.error('Session expired. Please login again.');
-        window.location.href = '/login';
-        return;
-      }
-      
-      const response = await fetch(`${API_URL}/v1/subscription`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      const data = await response.json();
-      console.log('Subscription status after payment:', data);
-      
-      if (data.status && data.data?.active) {
-        toast?.success('Payment successful! Your subscription is now active.');
-        const expiryDate = new Date(data.data.expires_at);
-        setSubscription(true, expiryDate);
-        window.location.href = '/start-selling';
-      } else {
-        toast?.info('Payment completed. Activating your subscription...');
+        toast?.info('Verifying your payment...');
         
-        setTimeout(async () => {
-          const retryResponse = await fetch(`${API_URL}/v1/subscription`, {
+        const token = getToken();
+        
+        if (!token) {
+            toast?.error('Session expired. Please login again.');
+            window.location.href = '/login';
+            return;
+        }
+        
+        // Check subscription status after payment
+        const response = await fetch(`${API_URL}/v1/subscription/status`, {
             method: 'GET',
             headers: {
-              'Authorization': `Bearer ${token}`,
-              'Accept': 'application/json',
-              'Content-Type': 'application/json'
+                'Authorization': `Bearer ${token}`,
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
             }
-          });
-          const retryData = await retryResponse.json();
-          
-          if (retryData.status && retryData.data?.active) {
-            toast?.success('Subscription activated! Redirecting...');
-            const expiryDate = new Date(retryData.data.expires_at);
+        });
+        
+        const data = await response.json();
+        console.log('Subscription status after payment:', data);
+        
+        if (data.status && data.data?.active) {
+            toast?.success('Payment successful! Your subscription is now active.');
+            const expiryDate = data.data.expires_at ? new Date(data.data.expires_at) : null;
             setSubscription(true, expiryDate);
             window.location.href = '/start-selling';
-          } else {
-            toast?.warning('Subscription activation in progress. Redirecting...');
-            window.location.href = '/start-selling';
-          }
-        }, 3000);
-      }
+        } else {
+            toast?.info('Payment completed. Activating your subscription...');
+            
+            // Retry after 3 seconds
+            setTimeout(async () => {
+                try {
+                    const retryResponse = await fetch(`${API_URL}/v1/subscription/status`, {
+                        method: 'GET',
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Accept': 'application/json',
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    const retryData = await retryResponse.json();
+                    
+                    if (retryData.status && retryData.data?.active) {
+                        toast?.success('Subscription activated! Redirecting...');
+                        const expiryDate = retryData.data.expires_at ? new Date(retryData.data.expires_at) : null;
+                        setSubscription(true, expiryDate);
+                        window.location.href = '/start-selling';
+                    } else {
+                        toast?.warning('Subscription activation in progress. Redirecting...');
+                        window.location.href = '/start-selling';
+                    }
+                } catch (err) {
+                    console.error('Retry error:', err);
+                    window.location.href = '/start-selling';
+                }
+            }, 3000);
+        }
     } catch (error) {
-      console.error('Verification error:', error);
-      toast?.error('Failed to verify payment. Redirecting...');
-      window.location.href = '/start-selling';
+        console.error('Verification error:', error);
+        toast?.error('Failed to verify payment. Please contact support.');
+        window.location.href = '/start-selling';
     } finally {
-      setVerifyingPayment(false);
-      window.history.replaceState({}, document.title, window.location.pathname);
+        setVerifyingPayment(false);
+        window.history.replaceState({}, document.title, window.location.pathname);
     }
-  };
+};
 
   const getToken = () => {
     return localStorage.getItem('loopmart_token') || localStorage.getItem('auth_token');
@@ -385,62 +392,61 @@ export default function PricingPage() {
     setProcessingPlan(selectedPlan.id);
     
     try {
-      const token = getToken();
-      
-      if (!token) {
-        toast?.error('Authentication failed. Please login again.');
-        setShowPaymentModal(false);
-        setShowLoginModal(true);
-        return;
-      }
+        const token = getToken();
+        
+        if (!token) {
+            toast?.error('Authentication failed. Please login again.');
+            setShowPaymentModal(false);
+            setShowLoginModal(true);
+            return;
+        }
 
-      sessionStorage.setItem('selected_plan', selectedPlan.name);
-      sessionStorage.setItem('plan_amount', selectedPlan.price.replace('₦', '').replace(',', ''));
-      sessionStorage.setItem('plan_interval', selectedPlan.interval);
+        const requestBody = {
+            interval: selectedPlan.interval
+        };
+        
+        console.log('Sending request to:', `${API_URL}/v1/subscription`);
+        console.log('Request body:', requestBody);
 
-      const requestBody = {
-        interval: selectedPlan.interval
-      };
-      
-      console.log('Sending request to:', `${API_URL}/v1/subscription`);
-      console.log('Request body:', requestBody);
+        const response = await fetch(`${API_URL}/v1/subscription`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(requestBody)
+        });
 
-      const response = await fetch(`${API_URL}/v1/subscription`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(requestBody)
-      });
+        const data = await response.json();
+        console.log('API Response:', data);
 
-      const data = await response.json();
-      console.log('API Response:', data);
-
-      if (data.status && data.data?.authorization_url) {
-        toast?.success('Transaction initialized! Redirecting to payment...');
-        setShowPaymentModal(false);
-        window.location.href = data.data.authorization_url;
-      } else {
-        const errorMessage = data.message || data.error || 'Failed to initialize subscription.';
-        toast?.error(errorMessage);
-        setShowPaymentModal(false);
-        sessionStorage.removeItem('selected_plan');
-        sessionStorage.removeItem('plan_amount');
-        sessionStorage.removeItem('plan_interval');
-      }
+        // Check if the response is successful (handles both 'status' and 'success' fields)
+        const isSuccess = data.status === true || data.success === true;
+        
+        if (isSuccess && data.data?.authorization_url) {
+            toast?.success('Transaction initialized! Redirecting to payment...');
+            setShowPaymentModal(false);
+            // Store reference for verification
+            if (data.data.reference) {
+                sessionStorage.setItem('payment_reference', data.data.reference);
+            }
+            // Redirect to Paystack payment page
+            window.location.href = data.data.authorization_url;
+        } else {
+            // Handle error response
+            const errorMessage = data.message || data.error || 'Failed to initialize subscription. Please try again.';
+            toast?.error(errorMessage);
+            setShowPaymentModal(false);
+        }
     } catch (error) {
-      console.error('Network error:', error);
-      toast?.error('Network error. Please try again.');
-      setShowPaymentModal(false);
-      sessionStorage.removeItem('selected_plan');
-      sessionStorage.removeItem('plan_amount');
-      sessionStorage.removeItem('plan_interval');
+        console.error('Network error:', error);
+        toast?.error('Network error. Please check your connection and try again.');
+        setShowPaymentModal(false);
     } finally {
-      setProcessingPlan(null);
+        setProcessingPlan(null);
     }
-  };
+};
 
   const handleStartSelling = () => {
     const isSubscribed = hasSubscription;
