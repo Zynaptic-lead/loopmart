@@ -1,3 +1,4 @@
+// src/components/dashboard/SubscriptionWarning.jsx
 import React, { useState, useEffect } from 'react';
 import { MdWarning, MdCheckCircle, MdCancel, MdRefresh } from 'react-icons/md';
 import { FaExclamationTriangle, FaClock } from 'react-icons/fa';
@@ -7,7 +8,6 @@ export default function SubscriptionWarning() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
-  // Use environment variable - NO HARDCODING
   const API_URL = import.meta.env.VITE_API_URL || 'https://loopmart.ng/api';
 
   const fetchSubscriptionStatus = async () => {
@@ -32,6 +32,7 @@ export default function SubscriptionWarning() {
 
       if (response.ok) {
         const data = await response.json();
+        console.log('Subscription data:', data); // Debug log
         if (data.success) {
           setSubscription(data.data);
         } else {
@@ -41,7 +42,8 @@ export default function SubscriptionWarning() {
         // User not authenticated, silently fail
         setLoading(false);
       } else {
-        setError('Failed to fetch subscription status');
+        const errorData = await response.json();
+        setError(errorData.message || 'Failed to fetch subscription status');
       }
     } catch (error) {
       console.error('Error fetching subscription:', error);
@@ -54,8 +56,8 @@ export default function SubscriptionWarning() {
   useEffect(() => {
     fetchSubscriptionStatus();
     
-    // Refresh every 5 minutes
-    const interval = setInterval(fetchSubscriptionStatus, 300000);
+    // Refresh every 2 minutes
+    const interval = setInterval(fetchSubscriptionStatus, 120000);
     
     return () => clearInterval(interval);
   }, []);
@@ -76,11 +78,32 @@ export default function SubscriptionWarning() {
   }
 
   if (error || !subscription) {
-    return null;
+    return (
+      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+        <div className="flex items-center gap-3">
+          <MdWarning className="text-yellow-500 text-xl flex-shrink-0" />
+          <div>
+            <p className="text-yellow-700 font-medium">
+              ⚠️ Subscription Status Unknown
+            </p>
+            <p className="text-yellow-600 text-sm">
+              Please refresh the page or contact support.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   // If subscription is active and not expiring soon
   if (subscription.active && !subscription.is_expiring_soon) {
+    const expiryDate = subscription.expires_at ? new Date(subscription.expires_at) : null;
+    const formattedDate = expiryDate ? expiryDate.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    }) : 'N/A';
+    
     return (
       <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
         <div className="flex items-center gap-3">
@@ -90,14 +113,13 @@ export default function SubscriptionWarning() {
               ✅ Active Subscription
             </p>
             <p className="text-green-600 text-sm">
-              Your subscription is active until <strong>
-                {subscription.expires_at ? new Date(subscription.expires_at).toLocaleDateString('en-US', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric'
-                }) : 'N/A'}
-              </strong>
+              Your subscription is active until <strong>{formattedDate}</strong>
             </p>
+            {subscription.plan && (
+              <p className="text-green-600 text-xs mt-1">
+                Plan: <span className="font-medium">{subscription.plan}</span>
+              </p>
+            )}
           </div>
         </div>
       </div>
@@ -106,7 +128,13 @@ export default function SubscriptionWarning() {
 
   // If subscription is expiring soon (within 7 days)
   if (subscription.is_expiring_soon) {
-    const daysLeft = subscription.days_until_expiry;
+    const daysLeft = subscription.days_until_expiry || 0;
+    const expiryDate = subscription.expires_at ? new Date(subscription.expires_at) : null;
+    const formattedDate = expiryDate ? expiryDate.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    }) : 'N/A';
     
     return (
       <div className="bg-yellow-50 border border-yellow-400 rounded-lg p-4 mb-4 animate-pulse">
@@ -117,14 +145,7 @@ export default function SubscriptionWarning() {
               ⚠️ Subscription Expiring Soon!
             </p>
             <p className="text-yellow-700 text-sm mt-1">
-              {subscription.warning_message || 
-                `Your subscription will expire in ${daysLeft} days on ${
-                  subscription.expires_at ? new Date(subscription.expires_at).toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric'
-                  }) : 'N/A'
-                }.`}
+              Your subscription will expire in <strong>{daysLeft} days</strong> on {formattedDate}.
             </p>
             <div className="flex items-center gap-3 mt-3">
               <button 
@@ -145,6 +166,13 @@ export default function SubscriptionWarning() {
   }
 
   // If subscription expired
+  const expiryDate = subscription.expires_at ? new Date(subscription.expires_at) : null;
+  const formattedDate = expiryDate ? expiryDate.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  }) : 'N/A';
+  
   return (
     <div className="bg-red-50 border border-red-400 rounded-lg p-4 mb-4">
       <div className="flex items-start gap-3">
@@ -152,14 +180,8 @@ export default function SubscriptionWarning() {
         <div className="flex-1">
           <p className="font-semibold text-red-800">❌ Subscription Expired</p>
           <p className="text-red-700 text-sm mt-1">
-            {subscription.warning_message || 
-              `Your subscription expired on ${
-                subscription.expires_at ? new Date(subscription.expires_at).toLocaleDateString('en-US', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric'
-                }) : 'N/A'
-              }. Your products are now hidden from the shop.`}
+            Your subscription expired on {formattedDate}. 
+            Your products are now hidden from the shop.
           </p>
           <button 
             onClick={handleRenew}
