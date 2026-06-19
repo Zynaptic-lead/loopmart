@@ -1,4 +1,6 @@
-import Preloader from '../components/Preloader'
+// src/layouts/RootLayout.jsx
+import React from 'react';
+import Preloader from '../components/Preloader';
 
 export default function RootLayout({ children }) {
   return (
@@ -6,5 +8,5 @@ export default function RootLayout({ children }) {
       <Preloader />
       <main>{children}</main>
     </div>
-  )
+  );
 }

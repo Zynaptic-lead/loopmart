@@ -8,7 +8,8 @@ import LearnSection from '../components/dashboard/LearnSection';
 import ReviewSection from '../components/dashboard/ReviewSection';
 import PrivacyPolicySection from '../components/dashboard/PrivacyPolicySection';
 import ReferFriendsSection from '../components/dashboard/ReferFriendsSection';
-import SupportSection from '../components/dashboard/SupportSection'; // ADD THIS IMPORT
+import SupportSection from '../components/dashboard/SupportSection';
+import SubscriptionWarning from '../components/dashboard/SubscriptionWarning'; // ADD THIS IMPORT
 import { MdOutlineWatchLater } from "react-icons/md";
 
 export default function DashboardPage() {
@@ -46,7 +47,7 @@ export default function DashboardPage() {
         return <ReferFriendsSection />;
       case 'Privacy Policy':
         return <PrivacyPolicySection />;
-      case 'Support':  // ADD THIS CASE
+      case 'Support':
         return <SupportSection />;
       default:
         return <ComingSoonSection sectionName={activeSection} />;
@@ -66,6 +67,12 @@ export default function DashboardPage() {
         />
 
         <main className="flex-1 p-4 lg:p-6 overflow-auto">
+          {/* ============================================== */}
+          {/* SUBSCRIPTION WARNING - SHOWS AT TOP OF DASHBOARD */}
+          {/* ============================================== */}
+          <SubscriptionWarning />
+          
+          {/* Render the active section */}
           {renderActiveSection()}
         </main>
       </div>
