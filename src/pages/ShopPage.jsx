@@ -1,4 +1,4 @@
-// ShopPage.jsx - Clean version without verified text and camera icons
+// ShopPage.jsx - With Subscription Warning for shop owners
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -10,6 +10,7 @@ import {
   FaCalendar, FaShoppingBag, FaUsers, FaGlobe
 } from 'react-icons/fa';
 import { useToast } from '../contexts/ToastContext';
+import SubscriptionWarning from '../components/dashboard/SubscriptionWarning';
 
 // Helper functions
 const getCurrentUser = () => {
@@ -318,6 +319,9 @@ export default function ShopPage() {
     activeProducts: 0
   });
 
+  // Use environment variable for API URL - NO HARDCODING
+  const API_URL = import.meta.env.VITE_API_URL || 'https://loopmart.ng/api';
+
   useEffect(() => {
     const user = getCurrentUser();
     setCurrentUser(user);
@@ -338,7 +342,7 @@ export default function ShopPage() {
       const headers = { 'Accept': 'application/json' };
       if (token) headers['Authorization'] = `Bearer ${token}`;
       
-      let url = `https://loopmart.ng/api/v1/user/avg-rating?userId=${userId}`;
+      let url = `${API_URL}/v1/user/avg-rating?userId=${userId}`;
       if (shopToken) url += `&shop_token=${shopToken}`;
       
       const response = await fetch(url, { headers });
@@ -351,7 +355,7 @@ export default function ShopPage() {
     } catch (error) {
       return 0;
     }
-  }, []);
+  }, [API_URL]);
 
   const fetchShopReviews = useCallback(async (userId, shopToken) => {
     try {
@@ -364,7 +368,7 @@ export default function ShopPage() {
         return;
       }
 
-      const url = `https://loopmart.ng/api/v1/user/review?user_id=${userId}&shop_token=${shopToken}`;
+      const url = `${API_URL}/v1/user/review?user_id=${userId}&shop_token=${shopToken}`;
       const headers = { 'Accept': 'application/json' };
       if (token) headers['Authorization'] = `Bearer ${token}`;
       
@@ -405,7 +409,7 @@ export default function ShopPage() {
     } finally {
       setLoadingReviews(false);
     }
-  }, []);
+  }, [API_URL]);
 
   const fetchShopData = useCallback(async () => {
     try {
@@ -422,7 +426,7 @@ export default function ShopPage() {
       let shopTokenFromProducts = null;
       
       try {
-        const productsResponse = await fetch('https://loopmart.ng/api/allproduct');
+        const productsResponse = await fetch(`${API_URL}/allproduct`);
         if (productsResponse.ok) {
           const allProducts = await productsResponse.json();
           userProducts = allProducts.filter((product) => 
@@ -526,7 +530,7 @@ export default function ShopPage() {
     } finally {
       setLoading(false);
     }
-  }, [slug, currentUser, fetchShopReviews, fetchAverageRating]);
+  }, [slug, currentUser, fetchShopReviews, fetchAverageRating, API_URL]);
 
   const refreshReviews = () => {
     if (shop && shop.shopToken) {
@@ -602,9 +606,16 @@ export default function ShopPage() {
         </div>
       </div>
 
+      {/* Subscription Warning - Only show for shop owners */}
+      {isOwnShop && (
+        <div className="max-w-7xl mx-auto px-4 pt-4">
+          <SubscriptionWarning />
+        </div>
+      )}
+
       <div className="max-w-7xl mx-auto px-4 py-6">
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-          {/* Banner Section - No camera icon */}
+          {/* Banner Section */}
           <div className="h-32 md:h-48 lg:h-56 relative border-b border-gray-300">
             {shop.coverImage && shop.coverImage !== '' && !bannerError ? (
               <img 
@@ -620,10 +631,10 @@ export default function ShopPage() {
             )}
           </div>
 
-          {/* Profile Info - No camera icon */}
+          {/* Profile Info */}
           <div className="px-4 md:px-6 pb-6">
             <div className="flex flex-col md:flex-row md:items-end md:-mt-16 mb-4">
-              {/* Profile Picture - No camera icon */}
+              {/* Profile Picture */}
               <div className="relative -mt-12 md:-mt-0 mx-auto md:mx-0">
                 {shop.profilePicture && shop.profilePicture !== '' && !profileError ? (
                   <div className="w-24 h-24 md:w-32 md:h-32 rounded-full border-4 border-white overflow-hidden bg-white shadow-lg">
@@ -657,7 +668,7 @@ export default function ShopPage() {
               </div>
             </div>
 
-            {/* Shop Details - No Verified text */}
+            {/* Shop Details */}
             <div className="mt-4 text-center md:text-left">
               <h1 className="text-2xl font-bold text-gray-900">{shop.username}</h1>
               
