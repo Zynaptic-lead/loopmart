@@ -1,5 +1,5 @@
 // contexts/SubscriptionContext.jsx
-import React, { createContext, useState, useContext, useCallback } from 'react';
+import React, { createContext, useState, useContext, useCallback, useEffect } from 'react';
 
 const SubscriptionContext = createContext();
 
@@ -21,7 +21,7 @@ export const SubscriptionProvider = ({ children }) => {
 
   // Get auth token
   const getAuthToken = () => {
-    return localStorage.getItem('loopmart_token');
+    return localStorage.getItem('loopmart_token') || localStorage.getItem('token');
   };
 
   // Get user data
@@ -35,11 +35,12 @@ export const SubscriptionProvider = ({ children }) => {
     }
   };
 
-  // Check subscription status
+  // Check subscription status - using the correct endpoint /v1/subscription/status
   const checkSubscription = useCallback(async () => {
     const token = getAuthToken();
     
     if (!token) {
+      console.log('No token found, subscription inactive');
       setHasSubscription(false);
       setSubscriptionDetails(null);
       return false;
@@ -49,7 +50,9 @@ export const SubscriptionProvider = ({ children }) => {
       setLoading(true);
       setError(null);
 
-      const response = await fetch(`${API_URL}/v1/subscription`, {
+      console.log('Checking subscription status...');
+      
+      const response = await fetch(`${API_URL}/v1/subscription/status`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -59,14 +62,21 @@ export const SubscriptionProvider = ({ children }) => {
       });
 
       const data = await response.json();
+      console.log('Subscription check response:', data);
 
-      if (response.ok && data.status === true) {
+      if (response.ok && (data.status === true || data.success === true)) {
         // Check if subscription is active
-        const isActive = data.data?.status === 'active' || data.data?.is_active === true;
+        const subscriptionData = data.data;
+        const isActive = subscriptionData?.active === true || 
+                        subscriptionData?.status === 'active' ||
+                        subscriptionData?.is_active === true;
+        
+        console.log('Subscription active:', isActive);
         setHasSubscription(isActive);
-        setSubscriptionDetails(data.data || null);
+        setSubscriptionDetails(subscriptionData || null);
         return isActive;
       } else {
+        console.log('Subscription check failed:', data.message || 'Unknown error');
         setHasSubscription(false);
         setSubscriptionDetails(null);
         return false;
@@ -82,7 +92,18 @@ export const SubscriptionProvider = ({ children }) => {
     }
   }, []);
 
-  // Initialize subscription
+  // Refresh subscription - force a fresh check
+  const refreshSubscription = useCallback(async () => {
+    setLoading(true);
+    try {
+      const result = await checkSubscription();
+      return result;
+    } finally {
+      setLoading(false);
+    }
+  }, [checkSubscription]);
+
+  // Initialize subscription - uses POST /v1/subscription
   const initializeSubscription = async (interval) => {
     const token = getAuthToken();
     
@@ -97,6 +118,8 @@ export const SubscriptionProvider = ({ children }) => {
       setLoading(true);
       setError(null);
 
+      console.log('Initializing subscription for interval:', interval);
+
       const response = await fetch(`${API_URL}/v1/subscription`, {
         method: 'POST',
         headers: {
@@ -108,8 +131,11 @@ export const SubscriptionProvider = ({ children }) => {
       });
 
       const data = await response.json();
+      console.log('Subscription initialization response:', data);
 
-      if (response.ok && data.status === true) {
+      const isSuccess = data.status === true || data.success === true;
+
+      if (response.ok && isSuccess) {
         // After successful subscription, check status again
         await checkSubscription();
         
@@ -186,14 +212,28 @@ export const SubscriptionProvider = ({ children }) => {
     }
   };
 
+  // Auto-check subscription on mount when token exists
+  useEffect(() => {
+    const token = getAuthToken();
+    if (token) {
+      console.log('Auto-checking subscription on mount...');
+      checkSubscription();
+    }
+  }, []);
+
   const value = {
     hasSubscription,
     subscriptionDetails,
     loading,
     error,
     checkSubscription,
+    refreshSubscription,
     initializeSubscription,
-    cancelSubscription
+    cancelSubscription,
+    setSubscription: (active, details) => {
+      setHasSubscription(active);
+      if (details) setSubscriptionDetails(details);
+    }
   };
 
   return (

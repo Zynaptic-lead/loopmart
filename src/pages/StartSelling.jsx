@@ -10,10 +10,9 @@ import ApiService from '../services/api';
 
 export default function StartSelling() {
   const navigate = useNavigate();
-  const { hasSubscription, loading: subLoading, checkSubscription } = useSubscription();
+  const { hasSubscription, loading: subLoading, checkSubscription, refreshSubscription } = useSubscription();
   const [checking, setChecking] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [subscriptionStatus, setSubscriptionStatus] = useState(null);
   const toast = useToast();
 
   // Form state
@@ -50,12 +49,12 @@ export default function StartSelling() {
     { value: "used", label: "Used" }
   ];
 
-  // Check subscription on mount - Direct API call
+  // Check subscription on mount
   useEffect(() => {
     const verifySubscription = async () => {
       setChecking(true);
       try {
-        // First, check if user is logged in
+        // Check if user is logged in
         const token = userService.getToken();
         if (!token) {
           console.log('No token found, redirecting to login');
@@ -66,49 +65,22 @@ export default function StartSelling() {
 
         console.log('Verifying subscription status...');
         
-        // Direct API call to check subscription
-        const response = await ApiService.get('/api/v1/subscription/status', {}, true);
-        console.log('Subscription API response:', response);
+        // Use the context's checkSubscription method
+        const isActive = await checkSubscription();
+        console.log('Subscription active status:', isActive);
         
-        if (response && response.status) {
-          const isActive = response.data?.active || false;
-          console.log('Subscription active status from API:', isActive);
-          setSubscriptionStatus(response.data);
-          
-          if (!isActive) {
-            console.log('No active subscription, redirecting to pricing');
-            toast?.error('Active subscription required to list products');
-            navigate('/pricing');
-            return;
-          }
-        } else {
-          // If API call fails, try using context
-          const isActive = await checkSubscription();
-          console.log('Subscription active status from context:', isActive);
-          
-          if (!isActive) {
-            console.log('No active subscription (from context), redirecting to pricing');
-            toast?.error('Active subscription required to list products');
-            navigate('/pricing');
-            return;
-          }
+        if (!isActive) {
+          console.log('No active subscription, redirecting to pricing');
+          toast?.error('Active subscription required to list products');
+          navigate('/pricing');
+          return;
         }
         
         console.log('Active subscription confirmed!');
       } catch (error) {
         console.error('Error checking subscription:', error);
-        // Try fallback - check if user has subscription via context
-        try {
-          const isActive = await checkSubscription();
-          if (!isActive) {
-            toast?.error('Active subscription required to list products');
-            navigate('/pricing');
-          }
-        } catch (contextError) {
-          console.error('Context check also failed:', contextError);
-          toast?.error('Unable to verify subscription. Please try again.');
-          navigate('/pricing');
-        }
+        // Don't redirect immediately, show error and let user retry
+        toast?.error('Unable to verify subscription. Please refresh and try again.');
       } finally {
         setChecking(false);
       }
@@ -121,12 +93,12 @@ export default function StartSelling() {
   useEffect(() => {
     if (!checking && !subLoading) {
       console.log('Subscription state changed:', { hasSubscription, checking, subLoading });
-      if (!hasSubscription) {
-        console.log('No subscription detected, redirecting to pricing');
-        navigate('/pricing');
+      if (hasSubscription === false) {
+        console.log('No subscription detected');
+        // Don't auto-redirect, let the user see the message
       }
     }
-  }, [hasSubscription, checking, subLoading, navigate]);
+  }, [hasSubscription, checking, subLoading]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -173,28 +145,17 @@ export default function StartSelling() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Double-check subscription before submitting - Direct API call
+    // Double-check subscription before submitting
     try {
-      const response = await ApiService.get('/api/v1/subscription/status', {}, true);
-      if (response && response.status) {
-        const isActive = response.data?.active || false;
-        if (!isActive) {
-          toast?.error('Your subscription has expired. Please renew to continue.');
-          navigate('/pricing');
-          return;
-        }
-      } else {
-        // Fallback to context
-        const isActive = await checkSubscription();
-        if (!isActive) {
-          toast?.error('Your subscription has expired. Please renew to continue.');
-          navigate('/pricing');
-          return;
-        }
+      const isActive = await checkSubscription();
+      if (!isActive) {
+        toast?.error('Your subscription has expired. Please renew to continue.');
+        navigate('/pricing');
+        return;
       }
     } catch (error) {
       console.error('Error checking subscription before submit:', error);
-      toast?.error('Unable to verify subscription. Please try again.');
+      toast?.error('Unable to verify subscription. Please refresh and try again.');
       return;
     }
     
@@ -310,22 +271,34 @@ export default function StartSelling() {
     );
   }
 
-  // If no subscription, show message
-  if (!hasSubscription && !subscriptionStatus?.active) {
+  // If no subscription, show message with retry option
+  if (!hasSubscription) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-yellow-50 to-yellow-100 flex items-center justify-center p-4">
         <div className="text-center max-w-md bg-white rounded-2xl shadow-lg p-8">
           <Shield className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-gray-800 mb-2">Subscription Required</h2>
-          <p className="text-gray-600 mb-6">
+          <p className="text-gray-600 mb-4">
             You need an active subscription to list products. Please subscribe to a plan to continue.
           </p>
-          <button
-            onClick={() => navigate('/pricing')}
-            className="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-3 px-6 rounded-lg transition-all duration-300"
-          >
-            View Pricing Plans
-          </button>
+          <div className="flex flex-col gap-3">
+            <button
+              onClick={() => navigate('/pricing')}
+              className="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-3 px-6 rounded-lg transition-all duration-300"
+            >
+              View Pricing Plans
+            </button>
+            <button
+              onClick={async () => {
+                setChecking(true);
+                await refreshSubscription();
+                setChecking(false);
+              }}
+              className="bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium py-2 px-4 rounded-lg transition-all duration-300 text-sm"
+            >
+              Refresh Subscription Status
+            </button>
+          </div>
         </div>
       </div>
     );
