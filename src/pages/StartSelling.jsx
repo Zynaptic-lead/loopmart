@@ -13,6 +13,7 @@ export default function StartSelling() {
   const { hasSubscription, loading: subLoading, checkSubscription } = useSubscription();
   const [checking, setChecking] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [subscriptionStatus, setSubscriptionStatus] = useState(null);
   const toast = useToast();
 
   // Form state
@@ -49,7 +50,7 @@ export default function StartSelling() {
     { value: "used", label: "Used" }
   ];
 
-  // Check subscription on mount - Use the context's checkSubscription
+  // Check subscription on mount - Direct API call
   useEffect(() => {
     const verifySubscription = async () => {
       setChecking(true);
@@ -63,32 +64,60 @@ export default function StartSelling() {
           return;
         }
 
-        // Check subscription status using context
         console.log('Verifying subscription status...');
-        const isActive = await checkSubscription();
-        console.log('Subscription active status:', isActive);
         
-        if (!isActive) {
-          console.log('No active subscription, redirecting to pricing');
-          toast?.error('Active subscription required to list products');
-          navigate('/pricing');
-          return;
+        // Direct API call to check subscription
+        const response = await ApiService.get('/api/v1/subscription/status', {}, true);
+        console.log('Subscription API response:', response);
+        
+        if (response && response.status) {
+          const isActive = response.data?.active || false;
+          console.log('Subscription active status from API:', isActive);
+          setSubscriptionStatus(response.data);
+          
+          if (!isActive) {
+            console.log('No active subscription, redirecting to pricing');
+            toast?.error('Active subscription required to list products');
+            navigate('/pricing');
+            return;
+          }
+        } else {
+          // If API call fails, try using context
+          const isActive = await checkSubscription();
+          console.log('Subscription active status from context:', isActive);
+          
+          if (!isActive) {
+            console.log('No active subscription (from context), redirecting to pricing');
+            toast?.error('Active subscription required to list products');
+            navigate('/pricing');
+            return;
+          }
         }
         
         console.log('Active subscription confirmed!');
       } catch (error) {
         console.error('Error checking subscription:', error);
-        toast?.error('Unable to verify subscription. Please try again.');
-        navigate('/pricing');
+        // Try fallback - check if user has subscription via context
+        try {
+          const isActive = await checkSubscription();
+          if (!isActive) {
+            toast?.error('Active subscription required to list products');
+            navigate('/pricing');
+          }
+        } catch (contextError) {
+          console.error('Context check also failed:', contextError);
+          toast?.error('Unable to verify subscription. Please try again.');
+          navigate('/pricing');
+        }
       } finally {
         setChecking(false);
       }
     };
     
     verifySubscription();
-  }, []); // Empty dependency array - run once on mount
+  }, []);
 
-  // Also check when hasSubscription changes (in case it updates after initial check)
+  // Also check when hasSubscription changes
   useEffect(() => {
     if (!checking && !subLoading) {
       console.log('Subscription state changed:', { hasSubscription, checking, subLoading });
@@ -144,11 +173,28 @@ export default function StartSelling() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Double-check subscription before submitting
-    const isActive = await checkSubscription();
-    if (!isActive) {
-      toast?.error('Your subscription has expired. Please renew to continue.');
-      navigate('/pricing');
+    // Double-check subscription before submitting - Direct API call
+    try {
+      const response = await ApiService.get('/api/v1/subscription/status', {}, true);
+      if (response && response.status) {
+        const isActive = response.data?.active || false;
+        if (!isActive) {
+          toast?.error('Your subscription has expired. Please renew to continue.');
+          navigate('/pricing');
+          return;
+        }
+      } else {
+        // Fallback to context
+        const isActive = await checkSubscription();
+        if (!isActive) {
+          toast?.error('Your subscription has expired. Please renew to continue.');
+          navigate('/pricing');
+          return;
+        }
+      }
+    } catch (error) {
+      console.error('Error checking subscription before submit:', error);
+      toast?.error('Unable to verify subscription. Please try again.');
       return;
     }
     
@@ -161,7 +207,6 @@ export default function StartSelling() {
       toast?.error('Please select a category');
       return;
     }
-    // Only validate price if NOT asking for price
     if (formData.ask_for_price === '0' && !formData.actual_price) {
       toast?.error('Please enter price');
       return;
@@ -265,8 +310,8 @@ export default function StartSelling() {
     );
   }
 
-  // If no subscription, show message instead of redirecting immediately
-  if (!hasSubscription) {
+  // If no subscription, show message
+  if (!hasSubscription && !subscriptionStatus?.active) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-yellow-50 to-yellow-100 flex items-center justify-center p-4">
         <div className="text-center max-w-md bg-white rounded-2xl shadow-lg p-8">
@@ -294,7 +339,6 @@ export default function StartSelling() {
         <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-6 mb-6">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              {/* Make logo clickable - redirect to home */}
               <button 
                 onClick={() => navigate('/')}
                 className="focus:outline-none hover:opacity-80 transition-opacity"
@@ -397,7 +441,6 @@ export default function StartSelling() {
                   />
                 </div>
 
-                {/* Price fields - only show if NOT asking for price */}
                 {formData.ask_for_price === '0' && (
                   <>
                     <div>
@@ -479,7 +522,6 @@ export default function StartSelling() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Images * (Max 5 images, 10MB each)
                   </label>
-                  {/* Make the entire container clickable for file upload */}
                   <div 
                     className="border-2 border-dashed border-gray-300 rounded-lg p-4 sm:p-6 text-center cursor-pointer hover:border-yellow-400 transition-colors"
                     onClick={() => document.getElementById('imageUpload').click()}
