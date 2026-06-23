@@ -1,6 +1,6 @@
 // src/components/dashboard/SubscriptionWarning.jsx
 import React, { useState, useEffect } from 'react';
-import { MdWarning, MdCheckCircle, MdCancel, MdRefresh, MdInfo } from 'react-icons/md';
+import { MdWarning, MdCheckCircle, MdCancel, MdRefresh } from 'react-icons/md';
 import { FaExclamationTriangle, FaClock } from 'react-icons/fa';
 
 export default function SubscriptionWarning() {
@@ -71,7 +71,7 @@ export default function SubscriptionWarning() {
     window.location.href = '/pricing';
   };
 
-  // Show nothing while loading (or show a subtle loader)
+  // Show nothing while loading
   if (loading) {
     return (
       <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-3">
@@ -83,7 +83,7 @@ export default function SubscriptionWarning() {
     );
   }
 
-  // If no subscription or error, show a warning to subscribe
+  // If no subscription or error
   if (error || !subscription) {
     return (
       <div className="bg-yellow-50 border border-yellow-300 rounded-lg p-4 mb-4">
@@ -108,10 +108,36 @@ export default function SubscriptionWarning() {
     );
   }
 
+  // ==============================================
+  // FIX: Check if subscription is actually active
+  // ==============================================
+  // First check the status
+  const isStatusActive = subscription.status === 'active';
+  
+  // Then check if period_end is in the future
+  let isPeriodValid = false;
+  if (subscription.expires_at || subscription.period_end) {
+    const expiryDate = new Date(subscription.expires_at || subscription.period_end);
+    const now = new Date();
+    isPeriodValid = expiryDate > now;
+    console.log('Expiry date:', expiryDate, 'Now:', now, 'Is valid:', isPeriodValid);
+  }
+
+  // Subscription is active if status is 'active' AND period is valid
+  const isActuallyActive = isStatusActive && isPeriodValid;
+
+  console.log('Subscription check:', {
+    status: subscription.status,
+    isStatusActive,
+    isPeriodValid,
+    isActuallyActive,
+    expires_at: subscription.expires_at || subscription.period_end
+  });
+
   // If subscription is active and NOT expiring soon (more than 7 days)
-  if (subscription.active && !subscription.is_expiring_soon) {
-    const expiryDate = subscription.expires_at ? new Date(subscription.expires_at) : null;
-    const formattedDate = expiryDate ? expiryDate.toLocaleDateString('en-US', {
+  if (isActuallyActive && !subscription.is_expiring_soon) {
+    const expiryDate = subscription.expires_at || subscription.period_end;
+    const formattedDate = expiryDate ? new Date(expiryDate).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
       day: 'numeric'
@@ -129,43 +155,41 @@ export default function SubscriptionWarning() {
     );
   }
 
-  // ==============================================
-  // ⚠️ EXPIRING SOON - THIS IS WHAT YOU WANT TO SEE
-  // ==============================================
-  if (subscription.is_expiring_soon) {
+  // If subscription is active but expiring soon (within 7 days)
+  if (isActuallyActive && subscription.is_expiring_soon) {
     const daysLeft = subscription.days_until_expiry || 0;
-    const expiryDate = subscription.expires_at ? new Date(subscription.expires_at) : null;
-    const formattedDate = expiryDate ? expiryDate.toLocaleDateString('en-US', {
+    const expiryDate = subscription.expires_at || subscription.period_end;
+    const formattedDate = expiryDate ? new Date(expiryDate).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
       day: 'numeric'
     }) : 'N/A';
     
     return (
-      <div className="bg-red-50 border border-red-400 rounded-lg p-4 mb-4 animate-pulse">
+      <div className="bg-yellow-50 border border-yellow-400 rounded-lg p-4 mb-4 animate-pulse">
         <div className="flex items-start gap-3">
-          <div className="bg-red-100 p-2 rounded-full">
-            <FaExclamationTriangle className="text-red-600 text-xl" />
+          <div className="bg-yellow-100 p-2 rounded-full">
+            <FaExclamationTriangle className="text-yellow-600 text-xl" />
           </div>
           <div className="flex-1">
-            <p className="font-bold text-red-800 text-lg">
+            <p className="font-bold text-yellow-800 text-lg">
               ⚠️ Subscription Expiring Soon!
             </p>
-            <p className="text-red-700 text-sm mt-1">
+            <p className="text-yellow-700 text-sm mt-1">
               Your subscription will expire in <strong>{daysLeft} days</strong> on <strong>{formattedDate}</strong>.
             </p>
-            <p className="text-red-600 text-xs mt-1">
+            <p className="text-yellow-600 text-xs mt-1">
               Your products will be hidden from the shop after expiry. Renew now to keep selling!
             </p>
             <div className="flex flex-wrap items-center gap-3 mt-3">
               <button 
                 onClick={handleRenew}
-                className="bg-red-600 hover:bg-red-700 text-white px-5 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                className="bg-yellow-600 hover:bg-yellow-700 text-white px-5 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
               >
                 <MdRefresh className="text-white" />
                 Renew Subscription Now
               </button>
-              <span className="text-xs text-red-600">
+              <span className="text-xs text-yellow-600">
                 <FaClock className="inline mr-1" />
                 {daysLeft} day{daysLeft !== 1 ? 's' : ''} remaining
               </span>
@@ -176,9 +200,9 @@ export default function SubscriptionWarning() {
     );
   }
 
-  // If subscription expired
-  const expiryDate = subscription.expires_at ? new Date(subscription.expires_at) : null;
-  const formattedDate = expiryDate ? expiryDate.toLocaleDateString('en-US', {
+  // If subscription expired (status is not active OR period is in the past)
+  const expiryDate = subscription.expires_at || subscription.period_end;
+  const formattedDate = expiryDate ? new Date(expiryDate).toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
     day: 'numeric'
@@ -189,9 +213,11 @@ export default function SubscriptionWarning() {
       <div className="flex items-start gap-3">
         <MdCancel className="text-red-600 text-xl flex-shrink-0 mt-0.5" />
         <div className="flex-1">
-          <p className="font-bold text-red-800">❌ Subscription Expired</p>
+          <p className="font-bold text-red-800">❌ Subscription {subscription.status === 'active' ? 'Expired' : 'Inactive'}</p>
           <p className="text-red-700 text-sm mt-1">
-            Your subscription expired on <strong>{formattedDate}</strong>. 
+            {subscription.status === 'active' 
+              ? `Your subscription expired on ${formattedDate}.` 
+              : `Your subscription is ${subscription.status}.`}
             Your products are now hidden from the shop.
           </p>
           <button 
