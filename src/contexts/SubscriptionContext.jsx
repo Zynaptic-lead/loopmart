@@ -65,13 +65,17 @@ export const SubscriptionProvider = ({ children }) => {
       console.log('Subscription check response:', data);
 
       if (response.ok && (data.status === true || data.success === true)) {
-        // Check if subscription is active
         const subscriptionData = data.data;
-        const isActive = subscriptionData?.active === true || 
-                        subscriptionData?.status === 'active' ||
-                        subscriptionData?.is_active === true;
+        
+        // ===== FIX: Prioritize the 'active' field over 'status' =====
+        // The 'active' field is the calculated value that checks both status AND period_end
+        // The 'status' field is just the raw Paystack status
+        const isActive = subscriptionData?.active === true;
         
         console.log('Subscription active:', isActive);
+        console.log('Raw status from API:', subscriptionData?.status);
+        console.log('Period end:', subscriptionData?.expires_at);
+        
         setHasSubscription(isActive);
         setSubscriptionDetails(subscriptionData || null);
         return isActive;
