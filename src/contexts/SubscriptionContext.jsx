@@ -1,4 +1,4 @@
-// contexts/SubscriptionContext.jsx - FIXED VERSION
+// src/contexts/SubscriptionContext.jsx - COMPLETELY FIXED
 import React, { createContext, useState, useContext, useCallback, useEffect } from 'react';
 
 const SubscriptionContext = createContext();
@@ -64,18 +64,12 @@ export const SubscriptionProvider = ({ children }) => {
       const data = await response.json();
       console.log('Subscription check response:', data);
 
-<<<<<<< HEAD
       // Check if the response is successful
       const isSuccess = response.ok && (data.status === true || data.success === true);
       
       if (isSuccess) {
-        // Check if subscription is active
-=======
-      if (response.ok && (data.status === true || data.success === true)) {
->>>>>>> 6d6e87f8b875ee9da1bd425d7468b36320ca867f
         const subscriptionData = data.data;
         
-        // ===== FIX: Prioritize the 'active' field over 'status' =====
         // The 'active' field is the calculated value that checks both status AND period_end
         // The 'status' field is just the raw Paystack status
         const isActive = subscriptionData?.active === true;
@@ -106,7 +100,6 @@ export const SubscriptionProvider = ({ children }) => {
 
   // Refresh subscription - force a fresh check
   const refreshSubscription = useCallback(async () => {
-    // Just call checkSubscription directly - it handles its own loading state
     const result = await checkSubscription();
     return result;
   }, [checkSubscription]);
@@ -227,8 +220,7 @@ export const SubscriptionProvider = ({ children }) => {
       console.log('Auto-checking subscription on mount...');
       checkSubscription();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Only run once on mount
+  }, []);
 
   const value = {
     hasSubscription,
