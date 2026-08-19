@@ -1,4 +1,4 @@
-// src/pages/StartSelling.jsx
+// src/pages/StartSelling.jsx - FIXED VERSION
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSubscription } from '../contexts/SubscriptionContext';
@@ -13,6 +13,7 @@ export default function StartSelling() {
   const { hasSubscription, loading: subLoading, checkSubscription, refreshSubscription } = useSubscription();
   const [checking, setChecking] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [subscriptionVerified, setSubscriptionVerified] = useState(false);
   const toast = useToast();
 
   // Form state
@@ -49,7 +50,7 @@ export default function StartSelling() {
     { value: "used", label: "Used" }
   ];
 
-  // Check subscription on mount
+  // Check subscription on mount - DO THIS ONCE
   useEffect(() => {
     const verifySubscription = async () => {
       setChecking(true);
@@ -65,9 +66,10 @@ export default function StartSelling() {
 
         console.log('Verifying subscription status...');
         
-        // Use the context's checkSubscription method
-        const isActive = await checkSubscription();
-        console.log('Subscription active status:', isActive);
+        // First, refresh the subscription status from the API
+        const isActive = await refreshSubscription();
+        console.log('Subscription active status after refresh:', isActive);
+        setSubscriptionVerified(isActive);
         
         if (!isActive) {
           console.log('No active subscription, redirecting to pricing');
@@ -79,7 +81,6 @@ export default function StartSelling() {
         console.log('Active subscription confirmed!');
       } catch (error) {
         console.error('Error checking subscription:', error);
-        // Don't redirect immediately, show error and let user retry
         toast?.error('Unable to verify subscription. Please refresh and try again.');
       } finally {
         setChecking(false);
@@ -87,18 +88,25 @@ export default function StartSelling() {
     };
     
     verifySubscription();
-  }, []);
+  }, []); // Empty dependency array - only run once
 
-  // Also check when hasSubscription changes
+  // Also check when hasSubscription changes from the context
   useEffect(() => {
     if (!checking && !subLoading) {
-      console.log('Subscription state changed:', { hasSubscription, checking, subLoading });
-      if (hasSubscription === false) {
-        console.log('No subscription detected');
-        // Don't auto-redirect, let the user see the message
+      console.log('Subscription state changed:', { 
+        hasSubscription, 
+        subscriptionVerified,
+        checking, 
+        subLoading 
+      });
+      
+      // If the context says we don't have a subscription but we're still on this page
+      if (hasSubscription === false && subscriptionVerified === true) {
+        console.log('Context says no subscription but we verified earlier - refreshing');
+        refreshSubscription();
       }
     }
-  }, [hasSubscription, checking, subLoading]);
+  }, [hasSubscription, checking, subLoading, subscriptionVerified, refreshSubscription]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -147,7 +155,7 @@ export default function StartSelling() {
     
     // Double-check subscription before submitting
     try {
-      const isActive = await checkSubscription();
+      const isActive = await refreshSubscription();
       if (!isActive) {
         toast?.error('Your subscription has expired. Please renew to continue.');
         navigate('/pricing');
@@ -272,7 +280,7 @@ export default function StartSelling() {
   }
 
   // If no subscription, show message with retry option
-  if (!hasSubscription) {
+  if (!hasSubscription || !subscriptionVerified) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-yellow-50 to-yellow-100 flex items-center justify-center p-4">
         <div className="text-center max-w-md bg-white rounded-2xl shadow-lg p-8">
@@ -291,8 +299,13 @@ export default function StartSelling() {
             <button
               onClick={async () => {
                 setChecking(true);
-                await refreshSubscription();
+                const isActive = await refreshSubscription();
+                setSubscriptionVerified(isActive);
                 setChecking(false);
+                
+                if (isActive) {
+                  toast?.success('Subscription verified! You can now list products.');
+                }
               }}
               className="bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium py-2 px-4 rounded-lg transition-all duration-300 text-sm"
             >

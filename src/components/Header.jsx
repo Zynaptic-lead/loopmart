@@ -7,7 +7,7 @@ import {
   FaSearch, FaBell, FaEye, FaEyeSlash, FaUser,
   FaSignOutAlt, FaChevronDown, FaTimes,
   FaExclamationCircle, FaShoppingCart, FaSpinner,
-  FaUserPlus, FaStar, FaComment, FaThumbsUp
+  FaUserPlus, FaStar, FaComment, FaThumbsUp, FaFilter
 } from 'react-icons/fa';
 import { RxAvatar } from "react-icons/rx";
 import { Menu, MenuButton, MenuItems, MenuItem, Transition } from '@headlessui/react';
@@ -16,7 +16,20 @@ import { userService } from '../services/userService';
 import { AuthService } from '../services/auth';
 import logo from '../assets/logo.png';
 
-// Helper functions
+// ========== CATEGORIES DATA ==========
+const CATEGORIES = [
+  { name: "Gadgets", keywords: ['gadget', 'electronics', 'phone', 'laptop', 'computer', 'tablet', 'smartphone', 'device', 'tech', 'electronic'] },
+  { name: "Vehicles", keywords: ['vehicle', 'car', 'truck', 'motorcycle', 'bike', 'auto', 'automobile', 'van', 'bus', 'suv', 'sedan'] },
+  { name: "Houses", keywords: ['house', 'apartment', 'flat', 'property', 'home', 'building', 'real estate', 'villa', 'duplex', 'bungalow'] },
+  { name: "Fashion", keywords: ['fashion', 'clothing', 'dress', 'shirt', 'pants', 'jeans', 'jacket', 'shoe', 'sneaker', 'bag', 'accessory', 'wear', 'outfit'] },
+  { name: "Jobs", keywords: ['job', 'work', 'career', 'employment', 'position', 'vacancy', 'hiring', 'recruitment', 'opportunity'] },
+  { name: "Cosmetics", keywords: ['cosmetic', 'makeup', 'beauty', 'skincare', 'lipstick', 'foundation', 'perfume', 'cream', 'lotion', 'face'] },
+  { name: "Fruits", keywords: ['fruit', 'apple', 'banana', 'orange', 'grape', 'mango', 'pineapple', 'vegetable', 'food', 'produce', 'strawberry'] },
+  { name: "Kitchen Utensils", keywords: ['kitchen', 'utensil', 'cookware', 'pan', 'pot', 'knife', 'spatula', 'cutting board', 'appliance', 'oven', 'blender'] },
+  { name: "Others", keywords: ['other', 'misc', 'miscellaneous', 'general'] }
+];
+
+// ========== HELPER FUNCTIONS ==========
 const getRandomColor = () => {
   const colors = ['#FFD700', '#FF6347', '#4CAF50', '#1E90FF', '#FF69B4', '#FF8C00', '#9C27B0'];
   return colors[Math.floor(Math.random() * colors.length)];
@@ -31,13 +44,39 @@ const getInitials = (email, name, username) => {
   return chars || 'U';
 };
 
-// Helper to get profile image URL
 const getProfileImageUrl = (photoFilename) => {
   if (!photoFilename) return null;
   if (photoFilename.startsWith('http')) return photoFilename;
   return `https://loopmart.ng/uploads/users/${photoFilename}`;
 };
 
+// ========== IMAGE URL HELPER ==========
+const getImageUrl = (imagePath) => {
+  if (!imagePath) return null;
+  if (imagePath.startsWith('http')) return imagePath;
+  if (imagePath.startsWith('/')) return `https://loopmart.ng${imagePath}`;
+  return `https://loopmart.ng/uploads/products/${imagePath}`;
+};
+
+// ========== CATEGORY DETECTION ==========
+const detectCategory = (query) => {
+  const queryLower = query.toLowerCase().trim();
+  for (const category of CATEGORIES) {
+    for (const keyword of category.keywords) {
+      if (queryLower.includes(keyword)) {
+        return category.name;
+      }
+    }
+  }
+  return null;
+};
+
+const getCategoryKeywords = (categoryName) => {
+  const category = CATEGORIES.find(c => c.name === categoryName);
+  return category ? category.keywords : [];
+};
+
+// ========== MAIN COMPONENT ==========
 export default function Header({ onModalStateChange }) {
   const navigate = useNavigate();
   
@@ -52,17 +91,9 @@ export default function Header({ onModalStateChange }) {
   const [loading, setLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   
-  const [loginFormData, setLoginFormData] = useState({ 
-    email: '', 
-    password: '', 
-    otp: '' 
-  });
+  const [loginFormData, setLoginFormData] = useState({ email: '', password: '', otp: '' });
   const [signupFormData, setSignupFormData] = useState({ 
-    email: '', 
-    password: '', 
-    password_confirmation: '',
-    name: '',
-    username: ''
+    email: '', password: '', password_confirmation: '', name: '', username: '' 
   });
   
   const [avatarColor, setAvatarColor] = useState('#FFD700');
@@ -77,6 +108,8 @@ export default function Header({ onModalStateChange }) {
   const [searchResults, setSearchResults] = useState([]);
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
+  const [detectedCategory, setDetectedCategory] = useState(null);
+  const [searchError, setSearchError] = useState(null);
   const searchRef = useRef(null);
   
   const [notifications, setNotifications] = useState([]);
@@ -105,14 +138,10 @@ export default function Header({ onModalStateChange }) {
   };
 
   const showMessage = (text, type) => {
-    console.log(`Showing message: ${text} (${type})`);
-    
     const icon = type === 'success' 
       ? <FaCheckCircle className="mr-2" size={16} />
       : <FaTimesCircle className="mr-2" size={16} />;
-    
     setMessage({ text, type, icon });
-    
     setTimeout(() => {
       setMessage(prev => prev.text === text ? { text: '', type: 'success' } : prev);
     }, type === 'success' ? 5000 : 7000);
@@ -124,19 +153,14 @@ export default function Header({ onModalStateChange }) {
       const stored = localStorage.getItem('loopmart_notifications');
       if (!stored) return [];
       return JSON.parse(stored);
-    } catch (error) {
-      console.error('Error loading notifications:', error);
-      return [];
-    }
+    } catch (error) { return []; }
   };
 
   const saveNotificationsToStorage = (notifications) => {
     try {
       const limited = notifications.slice(0, 100);
       localStorage.setItem('loopmart_notifications', JSON.stringify(limited));
-    } catch (error) {
-      console.error('Error saving notifications:', error);
-    }
+    } catch (error) {}
   };
 
   const loadNotifications = useCallback(() => {
@@ -145,25 +169,17 @@ export default function Header({ onModalStateChange }) {
       setUnreadCount(0);
       return;
     }
-
     setNotificationsLoading(true);
     setNotificationsError(null);
-    
     try {
       const storedNotifications = loadNotificationsFromStorage();
-      const userNotifications = storedNotifications.filter(n => 
-        n.userId === user.id
-      );
-      
+      const userNotifications = storedNotifications.filter(n => n.userId === user.id);
       const sortedNotifications = userNotifications.sort((a, b) => 
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       );
-      
       setNotifications(sortedNotifications);
-      const unread = sortedNotifications.filter(n => !n.read).length;
-      setUnreadCount(unread);
+      setUnreadCount(sortedNotifications.filter(n => !n.read).length);
     } catch (error) {
-      console.error('Failed to load notifications:', error);
       setNotificationsError(error.message);
       setNotifications([]);
       setUnreadCount(0);
@@ -209,7 +225,6 @@ export default function Header({ onModalStateChange }) {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
-    
     const updated = [newNotification, ...notifications];
     setNotifications(updated);
     setUnreadCount(prev => prev + 1);
@@ -217,41 +232,28 @@ export default function Header({ onModalStateChange }) {
     triggerBellAnimation();
   };
 
-  // ========== NOTIFICATION EVENT LISTENER ==========
   useEffect(() => {
     const handleAddNotification = (event) => {
       addNotification(event.detail);
     };
-
     window.addEventListener('add-notification', handleAddNotification);
-    
     return () => {
       window.removeEventListener('add-notification', handleAddNotification);
     };
   }, [notifications]);
 
   const handleNotificationClick = (notification) => {
-    if (!notification.read) {
-      markAsRead(notification.id);
-    }
-    
-    if (notification.reviewId) {
-      navigate(`/reviews/${notification.reviewId}`);
-    } else if (notification.productId) {
-      navigate(`/products/${notification.productId}`);
-    } else if (notification.action === 'welcome') {
-      navigate('/dashboard');
-    } else if (notification.action === 'profile') {
-      navigate('/profile');
-    }
-    
+    if (!notification.read) markAsRead(notification.id);
+    if (notification.reviewId) navigate(`/reviews/${notification.reviewId}`);
+    else if (notification.productId) navigate(`/products/${notification.productId}`);
+    else if (notification.action === 'welcome') navigate('/dashboard');
+    else if (notification.action === 'profile') navigate('/profile');
     setShowNotifications(false);
   };
 
   // ========== API FUNCTIONS ==========
   const apiFetch = async (url, options = {}) => {
     const fullUrl = url.startsWith('http') ? url : `${API_URL}${url}`;
-    
     const defaultOptions = {
       credentials: 'include',
       headers: {
@@ -259,7 +261,6 @@ export default function Header({ onModalStateChange }) {
         'Content-Type': 'application/json',
       },
     };
-
     const token = AuthService.getToken();
     if (token) {
       defaultOptions.headers = {
@@ -267,15 +268,8 @@ export default function Header({ onModalStateChange }) {
         'Authorization': `Bearer ${token}`,
       };
     }
-
     const finalOptions = { ...defaultOptions, ...options };
-    
-    try {
-      return await fetch(fullUrl, finalOptions);
-    } catch (error) {
-      console.error('API fetch error:', error);
-      throw error;
-    }
+    return await fetch(fullUrl, finalOptions);
   };
 
   // ========== AUTH FUNCTIONS ==========
@@ -297,8 +291,6 @@ export default function Header({ onModalStateChange }) {
     }
 
     try {
-      console.log('Attempting login with:', loginFormData.email);
-      
       const response = await apiFetch('/auth/login', {
         method: 'POST',
         body: JSON.stringify({
@@ -308,11 +300,9 @@ export default function Header({ onModalStateChange }) {
       });
 
       const data = await response.json();
-      console.log('Login response:', data);
 
       if (data.status === true || data.success === true) {
         let token, userData;
-        
         if (data.data && data.data.token) {
           token = data.data.token;
           userData = data.data.user;
@@ -322,36 +312,23 @@ export default function Header({ onModalStateChange }) {
         } else {
           throw new Error('Invalid response structure');
         }
-        
-        if (!token || !userData) {
-          throw new Error('Missing token or user data');
-        }
-        
-        console.log('Login successful, setting token and user');
-        
-        // Store in localStorage directly
+        if (!token || !userData) throw new Error('Missing token or user data');
         localStorage.setItem('loopmart_token', token);
         localStorage.setItem('loopmart_user', JSON.stringify(userData));
-        
-        // Also set via services
         AuthService.setToken(token, rememberMe);
         userService.setUser(userData, token);
-        
         showMessage('Login successful!', 'success');
-        
         setTimeout(() => {
           setShowLogin(false);
           setLoginFormData({ email: '', password: '', otp: '' });
           setMessage({ text: '', type: 'success' });
           loadNotifications();
         }, 1500);
-        
       } else {
         const errorMessage = data.message || data.error || 'Invalid email or password';
         showMessage(errorMessage, 'error');
       }
     } catch (error) {
-      console.error('Login error:', error);
       showMessage('Login failed. Please check your credentials.', 'error');
     } finally {
       setLoading(false);
@@ -389,8 +366,6 @@ export default function Header({ onModalStateChange }) {
     }
 
     try {
-      console.log('Attempting signup with:', signupFormData.email);
-      
       const response = await apiFetch('/auth/register', {
         method: 'POST',
         body: JSON.stringify({
@@ -403,11 +378,9 @@ export default function Header({ onModalStateChange }) {
       });
 
       const data = await response.json();
-      console.log('Signup response:', data);
 
       if (data.status === true || data.success === true) {
         let token, userData;
-        
         if (data.data && data.data.token) {
           token = data.data.token;
           userData = data.data.user;
@@ -423,7 +396,6 @@ export default function Header({ onModalStateChange }) {
           setLoading(false);
           return;
         }
-        
         if (!token || !userData) {
           showMessage('Registration successful! Please login.', 'success');
           setTimeout(() => {
@@ -433,34 +405,20 @@ export default function Header({ onModalStateChange }) {
           setLoading(false);
           return;
         }
-        
-        console.log('Signup successful, setting token and user');
-        
         AuthService.setToken(token, rememberMe);
         userService.setUser(userData, token);
-        
         showMessage('Registration successful!', 'success');
-        
         setTimeout(() => {
           setShowSignup(false);
-          setSignupFormData({ 
-            email: '', 
-            password: '', 
-            password_confirmation: '',
-            name: '',
-            username: ''
-          });
+          setSignupFormData({ email: '', password: '', password_confirmation: '', name: '', username: '' });
           setMessage({ text: '', type: 'success' });
           loadNotifications();
         }, 1500);
-        
       } else {
-        const errorMsg = data.message || 
-                        (data.errors ? Object.values(data.errors).flat().join(' ') : 'Registration failed');
+        const errorMsg = data.message || (data.errors ? Object.values(data.errors).flat().join(' ') : 'Registration failed');
         showMessage(errorMsg, 'error');
       }
     } catch (error) {
-      console.error('Signup error:', error);
       showMessage('Registration failed. Please try again.', 'error');
     } finally {
       setLoading(false);
@@ -485,31 +443,15 @@ export default function Header({ onModalStateChange }) {
         body: JSON.stringify({ email }),
         credentials: 'include',
       });
-
       const responseText = await response.text();
       let data;
-      try {
-        data = JSON.parse(responseText);
-      } catch (e) {
-        return { status: false, message: 'Server returned invalid response' };
-      }
-      
-      const isSuccess = data.status === true || 
-                       data.success === true || 
-                       data.message?.toLowerCase().includes('sent') ||
-                       data.message?.toLowerCase().includes('otp');
-      
+      try { data = JSON.parse(responseText); } catch (e) { return { status: false, message: 'Server returned invalid response' }; }
+      const isSuccess = data.status === true || data.success === true || data.message?.toLowerCase().includes('sent') || data.message?.toLowerCase().includes('otp');
       if (isSuccess) {
         if (data.data?.otp) setResetOtp(data.data.otp);
         else if (data.otp) setResetOtp(data.otp);
       }
-      
-      return {
-        status: isSuccess,
-        message: data.message || (isSuccess ? 'OTP sent successfully' : 'Failed to send OTP'),
-        data: data.data,
-        errors: data.errors
-      };
+      return { status: isSuccess, message: data.message || (isSuccess ? 'OTP sent successfully' : 'Failed to send OTP'), data: data.data, errors: data.errors };
     } catch (error) {
       return { status: false, message: error.message || 'Network error' };
     }
@@ -520,36 +462,20 @@ export default function Header({ onModalStateChange }) {
       const formDataToSend = new FormData();
       formDataToSend.append('email', email);
       formDataToSend.append('otp', otp);
-
       const response = await fetch(`${API_URL}/verify-otp`, {
         method: 'POST',
         body: formDataToSend,
         headers: { 'Accept': 'application/json' },
         credentials: 'include',
       });
-
       const responseText = await response.text();
       let data;
-      try {
-        data = JSON.parse(responseText);
-      } catch (e) {
-        return { status: false, message: 'Server returned invalid response' };
-      }
-      
-      const isSuccess = data.status === true || 
-                       data.success === true || 
-                       data.message?.toLowerCase().includes('verified');
-      
+      try { data = JSON.parse(responseText); } catch (e) { return { status: false, message: 'Server returned invalid response' }; }
+      const isSuccess = data.status === true || data.success === true || data.message?.toLowerCase().includes('verified');
       if (isSuccess && (data.data?.otp || data.otp)) {
         setResetOtp(data.data?.otp || data.otp);
       }
-      
-      return {
-        status: isSuccess,
-        message: data.message || (isSuccess ? 'OTP verified successfully' : 'Invalid OTP'),
-        data: data.data,
-        errors: data.errors
-      };
+      return { status: isSuccess, message: data.message || (isSuccess ? 'OTP verified successfully' : 'Invalid OTP'), data: data.data, errors: data.errors };
     } catch (error) {
       return { status: false, message: error.message || 'Network error' };
     }
@@ -561,30 +487,17 @@ export default function Header({ onModalStateChange }) {
       formDataToSend.append('otp', otp);
       formDataToSend.append('password', password);
       formDataToSend.append('password_confirmation', passwordConfirmation);
-
       const response = await fetch(`${API_URL}/reset-password`, {
         method: 'POST',
         body: formDataToSend,
         headers: { 'Accept': 'application/json' },
         credentials: 'include',
       });
-
       const responseText = await response.text();
       let data;
-      try {
-        data = JSON.parse(responseText);
-      } catch (e) {
-        return { status: false, message: 'Server returned invalid response' };
-      }
-      
+      try { data = JSON.parse(responseText); } catch (e) { return { status: false, message: 'Server returned invalid response' }; }
       const isSuccess = data.status === true || data.success === true;
-      
-      return {
-        status: isSuccess,
-        message: data.message || (isSuccess ? 'Password reset successful' : 'Failed to reset password'),
-        data: data.data,
-        errors: data.errors
-      };
+      return { status: isSuccess, message: data.message || (isSuccess ? 'Password reset successful' : 'Failed to reset password'), data: data.data, errors: data.errors };
     } catch (error) {
       return { status: false, message: error.message || 'Network error' };
     }
@@ -602,67 +515,54 @@ export default function Header({ onModalStateChange }) {
           setLoading(false);
           return;
         }
-
         const sendResult = await sendResetOTP(loginFormData.email.trim());
-        
         if (sendResult.status) {
           showMessage('Verification code sent to your email!', 'success');
           setResetStep('otp');
         } else {
           showMessage(sendResult.message || 'Failed to send verification code.', 'error');
         }
-
       } else if (resetStep === 'otp') {
         if (!loginFormData.email.trim()) {
           showMessage('Email is required', 'error');
           setLoading(false);
           return;
         }
-
         if (!loginFormData.otp.trim() || loginFormData.otp.length !== 6) {
           showMessage('Please enter a valid 6-digit verification code', 'error');
           setLoading(false);
           return;
         }
-
         const verifyResult = await verifyOTP(loginFormData.email, loginFormData.otp);
-        
         if (verifyResult.status || verifyResult.message?.toLowerCase().includes('verified')) {
           showMessage('Verification code verified successfully!', 'success');
           setResetStep('reset');
         } else {
           showMessage(verifyResult.message || 'Invalid verification code.', 'error');
         }
-
       } else if (resetStep === 'reset') {
         if (!loginFormData.password.trim()) {
           showMessage('Please enter a new password', 'error');
           setLoading(false);
           return;
         }
-
         if (loginFormData.password !== passwordConfirmation) {
           showMessage('Passwords do not match', 'error');
           setLoading(false);
           return;
         }
-
         if (loginFormData.password.length < 8) {
           showMessage('Password must be at least 8 characters', 'error');
           setLoading(false);
           return;
         }
-
         const otpToUse = resetOtp || loginFormData.otp;
-        
         if (!otpToUse.trim()) {
           showMessage('Verification code is required', 'error');
           setLoading(false);
           return;
         }
-
         const resetResult = await resetPassword(otpToUse, loginFormData.password, passwordConfirmation);
-        
         if (resetResult.status) {
           showMessage('Password reset successful!', 'success');
           setTimeout(() => {
@@ -682,50 +582,255 @@ export default function Header({ onModalStateChange }) {
 
   // ========== SEARCH FUNCTIONS ==========
   const searchProducts = async (query) => {
+    // Don't close the dropdown - keep it open even with empty results
+    // We want users to see the "No products found" message
+    
     if (!query.trim()) {
       setSearchResults([]);
-      setShowSearchResults(false);
+      setDetectedCategory(null);
+      setSearchError(null);
+      // Keep the dropdown open if it was already open
+      // Don't set showSearchResults to false here
       return;
     }
 
     setSearchLoading(true);
+    setSearchError(null);
+    const cleanQuery = query.trim();
+    
+    // Detect category from search query
+    const category = detectCategory(cleanQuery);
+    setDetectedCategory(category);
+
     try {
-      const response = await apiFetch(
-        `/v1/search/products?searchParams=${encodeURIComponent(query)}`
-      );
-
-      if (!response.ok) throw new Error(`Search failed: ${response.status}`);
-
-      const data = await response.json();
       let results = [];
-      
-      if (data.status && data.data && Array.isArray(data.data)) {
-        results = data.data.map((item) => ({
-          id: item.id || item.product_id || 0,
-          title: item.title || item.name || 'Product',
-          price: item.actual_price || item.price || '₦0',
-          image: item.image || item.product_image,
-          category: item.category || item.product_category,
-          condition: item.condition || 'Unknown'
-        }));
+      let allProducts = [];
+
+      // Fetch all products from the correct endpoint: /allproduct
+      try {
+        console.log('Fetching products from:', `${API_URL}/allproduct`);
+        const response = await fetch(`${API_URL}/allproduct`, {
+          method: 'GET',
+          headers: { 'Accept': 'application/json' },
+          credentials: 'include',
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          console.log('Products response:', data);
+          
+          // Parse the response - handle different data structures
+          if (data.status && data.data && Array.isArray(data.data)) {
+            allProducts = data.data;
+          } else if (data.data && Array.isArray(data.data)) {
+            allProducts = data.data;
+          } else if (Array.isArray(data)) {
+            allProducts = data;
+          } else if (data.products && Array.isArray(data.products)) {
+            allProducts = data.products;
+          } else if (data.allproduct && Array.isArray(data.allproduct)) {
+            allProducts = data.allproduct;
+          } else if (data.result && Array.isArray(data.result)) {
+            allProducts = data.result;
+          }
+          
+          console.log('Parsed products count:', allProducts.length);
+        } else {
+          console.error('Failed to fetch products:', response.status);
+        }
+      } catch (error) {
+        console.error('Error fetching products:', error);
       }
-      
+
+      // If we got products, filter them client-side
+      if (allProducts.length > 0) {
+        const queryLower = cleanQuery.toLowerCase();
+        
+        // Filter products based on query and category
+        const filteredProducts = allProducts.filter(product => {
+          // Build searchable text from product
+          const searchableText = [
+            product.title,
+            product.name,
+            product.product_name,
+            product.category,
+            product.product_category,
+            product.category_name,
+            product.description,
+            product.product_description,
+            product.tags,
+            product.keywords,
+            product.brand,
+            product.type,
+            product.subcategory
+          ].filter(Boolean).join(' ').toLowerCase();
+
+          // Check if query matches
+          const matchesQuery = searchableText.includes(queryLower);
+          
+          // Check if category matches
+          let matchesCategory = true;
+          if (category) {
+            const productCategory = (product.category || product.product_category || product.category_name || product.type || '').toLowerCase();
+            const categoryKeywords = getCategoryKeywords(category);
+            matchesCategory = productCategory.includes(category.toLowerCase()) || 
+                             categoryKeywords.some(kw => productCategory.includes(kw));
+          }
+
+          return matchesQuery && matchesCategory;
+        });
+
+        results = filteredProducts.map(item => {
+          // Extract image URL - handle different formats
+          let imageUrl = null;
+          try {
+            if (item.image_url && typeof item.image_url === 'string' && item.image_url.startsWith('[')) {
+              const parsed = JSON.parse(item.image_url);
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                imageUrl = getImageUrl(parsed[0]);
+              }
+            } else if (item.image_url) {
+              imageUrl = getImageUrl(item.image_url);
+            } else if (item.image) {
+              imageUrl = getImageUrl(item.image);
+            } else if (item.product_image) {
+              imageUrl = getImageUrl(item.product_image);
+            } else if (item.photo) {
+              imageUrl = getImageUrl(item.photo);
+            } else if (item.images && Array.isArray(item.images) && item.images.length > 0) {
+              imageUrl = getImageUrl(item.images[0]);
+            }
+          } catch (e) {
+            console.log('Error parsing image:', e);
+            imageUrl = item.image_url || item.image || item.product_image || null;
+            if (imageUrl) imageUrl = getImageUrl(imageUrl);
+          }
+
+          return {
+            id: item.id || item.product_id || item._id || 0,
+            title: item.title || item.name || item.product_name || 'Product',
+            price: item.actual_price || item.price || item.selling_price || item.amount || '₦0',
+            image: imageUrl,
+            category: item.category || item.product_category || item.category_name || category || 'Unknown',
+            condition: item.condition || item.product_condition || 'Unknown',
+            description: item.description || item.product_description || ''
+          };
+        });
+        
+        console.log('Filtered results:', results.length);
+      }
+
+      // If no results from client-side filtering, try search endpoints
+      if (results.length === 0) {
+        const searchEndpoints = [
+          `${API_URL}/search?q=${encodeURIComponent(cleanQuery)}`,
+          `${API_URL}/v1/search/products?searchParams=${encodeURIComponent(cleanQuery)}`,
+          `${API_URL}/products/search?query=${encodeURIComponent(cleanQuery)}`
+        ];
+
+        if (category) {
+          searchEndpoints.unshift(
+            `${API_URL}/search?q=${encodeURIComponent(cleanQuery)}&category=${encodeURIComponent(category)}`
+          );
+        }
+
+        for (const endpoint of searchEndpoints) {
+          try {
+            console.log('Trying search endpoint:', endpoint);
+            const response = await fetch(endpoint, {
+              headers: { 'Accept': 'application/json' },
+              credentials: 'include',
+            });
+            
+            if (response.ok) {
+              const data = await response.json();
+              let parsedResults = [];
+              
+              if (data.status && data.data && Array.isArray(data.data)) {
+                parsedResults = data.data;
+              } else if (data.data && Array.isArray(data.data)) {
+                parsedResults = data.data;
+              } else if (Array.isArray(data)) {
+                parsedResults = data;
+              } else if (data.products && Array.isArray(data.products)) {
+                parsedResults = data.products;
+              } else if (data.result && Array.isArray(data.result)) {
+                parsedResults = data.result;
+              }
+
+              if (parsedResults.length > 0) {
+                results = parsedResults.map((item) => {
+                  let imageUrl = null;
+                  try {
+                    if (item.image_url && typeof item.image_url === 'string' && item.image_url.startsWith('[')) {
+                      const parsed = JSON.parse(item.image_url);
+                      if (Array.isArray(parsed) && parsed.length > 0) {
+                        imageUrl = getImageUrl(parsed[0]);
+                      }
+                    } else if (item.image_url) {
+                      imageUrl = getImageUrl(item.image_url);
+                    } else if (item.image) {
+                      imageUrl = getImageUrl(item.image);
+                    } else if (item.product_image) {
+                      imageUrl = getImageUrl(item.product_image);
+                    } else if (item.photo) {
+                      imageUrl = getImageUrl(item.photo);
+                    }
+                  } catch (e) {
+                    imageUrl = item.image_url || item.image || item.product_image || null;
+                    if (imageUrl) imageUrl = getImageUrl(imageUrl);
+                  }
+
+                  return {
+                    id: item.id || item.product_id || item._id || 0,
+                    title: item.title || item.name || item.product_name || 'Product',
+                    price: item.actual_price || item.price || item.selling_price || item.amount || '₦0',
+                    image: imageUrl,
+                    category: item.category || item.product_category || item.category_name || category || 'Unknown',
+                    condition: item.condition || item.product_condition || 'Unknown',
+                    description: item.description || item.product_description || ''
+                  };
+                });
+                break;
+              }
+            }
+          } catch (endpointError) {
+            console.log('Search endpoint failed:', endpointError);
+            continue;
+          }
+        }
+      }
+
       setSearchResults(results);
-      setShowSearchResults(results.length > 0);
+      // Keep the dropdown open even if there are no results
+      setShowSearchResults(true);
+      if (results.length === 0) {
+        setSearchError(`No products found for "${cleanQuery}"${category ? ` in ${category}` : ''}`);
+      } else {
+        setSearchError(null);
+      }
     } catch (error) {
       console.error('Search error:', error);
       setSearchResults([]);
-      setShowSearchResults(false);
+      setShowSearchResults(true); // Keep open even on error
+      setSearchError('Search failed. Please try again.');
     } finally {
       setSearchLoading(false);
     }
   };
 
+  // ========== SEARCH HANDLERS ==========
   const handleSearch = (e) => {
     e.preventDefault();
     if (searchQuery.trim()) {
+      // Always open the dropdown when searching
       setShowSearchResults(true);
       searchProducts(searchQuery);
+    } else {
+      // If search is empty, keep dropdown open if it was already open
+      setShowSearchResults(true);
+      setSearchResults([]);
+      setSearchError('Please enter a search term');
     }
   };
 
@@ -733,6 +838,11 @@ export default function Header({ onModalStateChange }) {
     navigate(`/products/${productId}`);
     setShowSearchResults(false);
     setSearchQuery('');
+  };
+
+  // Close search dropdown only when clicking outside
+  const handleCloseSearch = () => {
+    setShowSearchResults(false);
   };
 
   // ========== FORM HANDLERS ==========
@@ -771,34 +881,51 @@ export default function Header({ onModalStateChange }) {
     setShowForgotPassword(false);
     setResetStep('email');
     setLoginFormData({ email: '', password: '', otp: '' });
-    setSignupFormData({ 
-      email: '', 
-      password: '', 
-      password_confirmation: '',
-      name: '',
-      username: ''
-    });
+    setSignupFormData({ email: '', password: '', password_confirmation: '', name: '', username: '' });
     setPasswordConfirmation('');
     setResetOtp('');
     setMessage({ text: '', type: 'success' });
   };
 
-  // ========== COMPONENTS ==========
+  // ========== SEARCH RESULTS DROPDOWN COMPONENT ==========
   const SearchResultsDropdown = () => (
     <div className="relative w-full" ref={searchRef}>
       <AnimatePresence>
         {showSearchResults && (
-          <motion.div
-            initial={{ opacity: 0, y: -10, scale: 0.95 }}
+          <motion.div            initial={{ opacity: 0, y: -10, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -10, scale: 0.95 }}
-            className="absolute top-full mt-2 w-full bg-white rounded-xl shadow-2xl border z-50 max-h-96 overflow-y-auto"
+            className="absolute top-full mt-2 w-full bg-white rounded-xl shadow-2xl border z-50 max-h-[500px] overflow-y-auto"
           >
-            <div className="p-4 border-b">
+            <div className="p-4 border-b sticky top-0 bg-white z-10">
               <div className="flex items-center justify-between">
                 <h3 className="font-bold text-gray-900">Search Results</h3>
-                <span className="text-sm text-gray-500">{searchResults.length} found</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-500">{searchResults.length} found</span>
+                  <button
+                    onClick={handleCloseSearch}
+                    className="text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    <FaTimes size={14} />
+                  </button>
+                </div>
               </div>
+              {searchQuery && (
+                <div className="flex items-center gap-2 mt-1 flex-wrap">
+                  <span className="text-xs text-gray-400">
+                    Searching for: <span className="font-medium text-gray-600">"{searchQuery}"</span>
+                  </span>
+                  {detectedCategory && (
+                    <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full flex items-center gap-1">
+                      <FaFilter size={10} />
+                      {detectedCategory}
+                    </span>
+                  )}
+                </div>
+              )}
+              {searchError && (
+                <div className="text-xs text-red-500 mt-1 bg-red-50 p-2 rounded-lg">{searchError}</div>
+              )}
             </div>
 
             {searchLoading ? (
@@ -810,7 +937,18 @@ export default function Header({ onModalStateChange }) {
               <div className="p-8 text-center">
                 <FaSearch className="text-gray-300 text-3xl mx-auto mb-3" />
                 <p className="text-gray-500">No products found</p>
-                <p className="text-gray-400 text-sm mt-1">Try different keywords</p>
+                <p className="text-gray-400 text-sm mt-1">Try different keywords or browse categories</p>
+                {detectedCategory && (
+                  <button
+                    onClick={() => {
+                      navigate(`/search?q=${encodeURIComponent(searchQuery)}&category=${encodeURIComponent(detectedCategory)}`);
+                      setShowSearchResults(false);
+                    }}
+                    className="mt-3 text-sm text-blue-600 hover:text-blue-800 font-medium"
+                  >
+                    View all {detectedCategory} products
+                  </button>
+                )}
               </div>
             ) : (
               <div className="divide-y divide-gray-100">
@@ -827,9 +965,13 @@ export default function Header({ onModalStateChange }) {
                             src={product.image} 
                             alt={product.title}
                             className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.target.onerror = null;
+                              e.target.parentElement.innerHTML = `<div class="w-full h-full flex items-center justify-center text-gray-400 bg-gray-200"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg></div>`;
+                            }}
                           />
                         ) : (
-                          <div className="w-full h-full flex items-center justify-center text-gray-400">
+                          <div className="w-full h-full flex items-center justify-center text-gray-400 bg-gray-200">
                             <FaShoppingCart size={20} />
                           </div>
                         )}
@@ -838,20 +980,25 @@ export default function Header({ onModalStateChange }) {
                         <h4 className="font-medium text-gray-900 text-sm line-clamp-2">
                           {product.title}
                         </h4>
-                        <div className="flex items-center gap-2 mt-1">
+                        <div className="flex items-center gap-2 mt-1 flex-wrap">
                           <span className="text-yellow-600 font-bold">
-                            {product.price.includes('₦') ? product.price : `₦${product.price}`}
+                            {product.price.toString().includes('₦') ? product.price : `₦${product.price}`}
                           </span>
-                          {product.category && (
-                            <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                          {product.category && product.category !== 'Unknown' && (
+                            <span className="text-xs text-white bg-blue-500 px-2 py-0.5 rounded-full">
                               {product.category}
                             </span>
                           )}
+                          {product.condition && product.condition !== 'Unknown' && (
+                            <span className="text-xs text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">
+                              {product.condition}
+                            </span>
+                          )}
                         </div>
-                        {product.condition && (
-                          <span className="text-xs text-gray-500 mt-1">
-                            {product.condition}
-                          </span>
+                        {product.description && (
+                          <p className="text-xs text-gray-500 mt-1 line-clamp-1">
+                            {product.description}
+                          </p>
                         )}
                       </div>
                     </div>
@@ -861,16 +1008,19 @@ export default function Header({ onModalStateChange }) {
             )}
 
             {searchResults.length > 0 && (
-              <div className="p-3 border-t bg-gray-50">
+              <div className="p-3 border-t bg-gray-50 sticky bottom-0">
                 <button
                   onClick={() => {
-                    navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
+                    const params = new URLSearchParams();
+                    params.append('q', searchQuery);
+                    if (detectedCategory) params.append('category', detectedCategory);
+                    navigate(`/search?${params.toString()}`);
                     setShowSearchResults(false);
                     setSearchQuery('');
                   }}
                   className="w-full text-center text-sm text-blue-600 hover:text-blue-800 font-medium"
                 >
-                  View all search results
+                  View all search results ({searchResults.length})
                 </button>
               </div>
             )}
@@ -880,6 +1030,7 @@ export default function Header({ onModalStateChange }) {
     </div>
   );
 
+  // ========== NOTIFICATION DROPDOWN COMPONENT ==========
   const NotificationDropdown = () => (
     <div className="relative" ref={notificationRef}>
       <button 
@@ -947,9 +1098,7 @@ export default function Header({ onModalStateChange }) {
                 <div className="p-8 text-center">
                   <FaBell className="text-gray-300 text-4xl mx-auto mb-3" />
                   <p className="text-gray-500">No notifications yet</p>
-                  <p className="text-gray-400 text-xs mt-1">
-                    Your notifications will appear here
-                  </p>
+                  <p className="text-gray-400 text-xs mt-1">Your notifications will appear here</p>
                 </div>
               ) : (
                 <div className="divide-y divide-gray-100">
@@ -974,36 +1123,24 @@ export default function Header({ onModalStateChange }) {
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start justify-between">
-                            <h4 className="font-medium text-gray-900 text-sm">
-                              {notification.title}
-                            </h4>
+                            <h4 className="font-medium text-gray-900 text-sm">{notification.title}</h4>
                             {!notification.read && (
                               <span className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0 mt-1 animate-pulse"></span>
                             )}
                           </div>
-                          <p className="text-gray-600 text-sm mt-1 whitespace-pre-line">
-                            {notification.message}
-                          </p>
-                          
+                          <p className="text-gray-600 text-sm mt-1 whitespace-pre-line">{notification.message}</p>
                           {notification.review && (
                             <div className="mt-2 flex items-center gap-2 text-xs text-gray-500 bg-purple-50 rounded-lg p-2">
                               <FaStar className="text-purple-500" />
                               <span className="font-medium">Rating: {notification.review.rating}/5</span>
-                              {notification.review.comment && (
-                                <span className="truncate">"{notification.review.comment}"</span>
-                              )}
+                              {notification.review.comment && <span className="truncate">"{notification.review.comment}"</span>}
                             </div>
                           )}
-                          
                           {notification.product && (
                             <div className="mt-2 flex items-center gap-2 text-xs text-gray-500 bg-gray-100 rounded-lg p-2">
                               <div className="flex-shrink-0 w-8 h-8 bg-gray-200 rounded overflow-hidden">
                                 {notification.product.image ? (
-                                  <img 
-                                    src={notification.product.image} 
-                                    alt={notification.product.name}
-                                    className="w-full h-full object-cover"
-                                  />
+                                  <img src={notification.product.image} alt={notification.product.name} className="w-full h-full object-cover" />
                                 ) : (
                                   <div className="w-full h-full flex items-center justify-center text-gray-400">
                                     <FaShoppingCart size={12} />
@@ -1013,18 +1150,12 @@ export default function Header({ onModalStateChange }) {
                               <span className="truncate font-medium flex-1">{notification.product.name}</span>
                             </div>
                           )}
-                          
                           <div className="flex items-center justify-between mt-2">
-                            <span className="text-xs text-gray-400">
-                              {formatDate(notification.createdAt)}
-                            </span>
+                            <span className="text-xs text-gray-400">{formatDate(notification.createdAt)}</span>
                             <div className="flex items-center gap-2">
                               {!notification.read && (
                                 <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    markAsRead(notification.id);
-                                  }}
+                                  onClick={(e) => { e.stopPropagation(); markAsRead(notification.id); }}
                                   className="text-xs text-blue-600 hover:text-blue-800"
                                 >
                                   Mark read
@@ -1032,11 +1163,7 @@ export default function Header({ onModalStateChange }) {
                               )}
                               {notification.reviewId && (
                                 <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    navigate(`/reviews/${notification.reviewId}`);
-                                    setShowNotifications(false);
-                                  }}
+                                  onClick={(e) => { e.stopPropagation(); navigate(`/reviews/${notification.reviewId}`); setShowNotifications(false); }}
                                   className="text-xs text-purple-600 hover:text-purple-800"
                                 >
                                   View Review
@@ -1044,11 +1171,7 @@ export default function Header({ onModalStateChange }) {
                               )}
                               {notification.productId && !notification.reviewId && (
                                 <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    navigate(`/products/${notification.productId}`);
-                                    setShowNotifications(false);
-                                  }}
+                                  onClick={(e) => { e.stopPropagation(); navigate(`/products/${notification.productId}`); setShowNotifications(false); }}
                                   className="text-xs text-green-600 hover:text-green-800"
                                 >
                                   View Product
@@ -1067,10 +1190,7 @@ export default function Header({ onModalStateChange }) {
             {notifications.length > 0 && (
               <div className="p-3 border-t bg-gray-50 flex justify-between items-center">
                 <button
-                  onClick={() => {
-                    setShowNotifications(false);
-                    navigate('/notifications');
-                  }}
+                  onClick={() => { setShowNotifications(false); navigate('/notifications'); }}
                   className="text-sm text-blue-600 hover:text-blue-800 font-medium"
                 >
                   View all notifications
@@ -1090,15 +1210,12 @@ export default function Header({ onModalStateChange }) {
   );
 
   // ========== EFFECTS ==========
-  // Load user from localStorage on mount
   useEffect(() => {
     const token = localStorage.getItem('loopmart_token');
     const userStr = localStorage.getItem('loopmart_user');
-    
     if (token && userStr && !user) {
       try {
         const userData = JSON.parse(userStr);
-        console.log('Header - Loading user from localStorage:', userData);
         setUser(userData);
         setAvatarColor(getRandomColor());
         loadNotifications();
@@ -1108,21 +1225,17 @@ export default function Header({ onModalStateChange }) {
     }
   }, [user]);
 
-  // Get user from userService on mount
   useEffect(() => {
     const currentUser = userService.getUser();
     if (currentUser) {
-      console.log('Header - User from storage:', currentUser);
       setUser(currentUser);
       setAvatarColor(getRandomColor());
       loadNotifications();
     }
   }, []);
 
-  // Subscribe to user changes
   useEffect(() => {
     const unsubscribe = userService.subscribe((currentUser) => {
-      console.log('Header - User state updated:', currentUser);
       setUser(currentUser);
       if (currentUser) {
         setAvatarColor(getRandomColor());
@@ -1132,11 +1245,10 @@ export default function Header({ onModalStateChange }) {
         setUnreadCount(0);
       }
     });
-    
     return unsubscribe;
   }, [loadNotifications]);
 
-  // Click outside handlers
+  // Click outside handlers - this is the only way the search closes
   useEffect(() => {
     const handleClickOutsideSearch = (event) => {
       if (searchRef.current && !searchRef.current.contains(event.target)) {
@@ -1152,28 +1264,28 @@ export default function Header({ onModalStateChange }) {
 
     document.addEventListener('mousedown', handleClickOutsideSearch);
     document.addEventListener('mousedown', handleClickOutsideNotification);
-    
     return () => {
       document.removeEventListener('mousedown', handleClickOutsideSearch);
       document.removeEventListener('mousedown', handleClickOutsideNotification);
     };
   }, []);
 
-  // Search debounce
+  // Search debounce - don't close the dropdown
   useEffect(() => {
     const timer = setTimeout(() => {
       if (searchQuery.trim()) {
         searchProducts(searchQuery);
       } else {
+        // When search is empty, show empty state but keep dropdown open
         setSearchResults([]);
-        setShowSearchResults(false);
+        setDetectedCategory(null);
+        setSearchError('Type something to search');
+        setShowSearchResults(true);
       }
     }, 500);
-
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Modal state change callback
   useEffect(() => {
     if (onModalStateChange) {
       const isModalActive = showLogin || showSignup || showForgotPassword || mobileMenuOpen;
@@ -1181,7 +1293,6 @@ export default function Header({ onModalStateChange }) {
     }
   }, [showLogin, showSignup, showForgotPassword, mobileMenuOpen, onModalStateChange]);
 
-  // Animation styles
   useEffect(() => {
     const style = document.createElement('style');
     style.textContent = `
@@ -1197,13 +1308,9 @@ export default function Header({ onModalStateChange }) {
       }
     `;
     document.head.appendChild(style);
-    
-    return () => {
-      document.head.removeChild(style);
-    };
+    return () => { document.head.removeChild(style); };
   }, []);
 
-  // Get profile picture URL
   const profilePictureUrl = user?.photo_url ? getProfileImageUrl(user.photo_url) : user?.profilePicture;
 
   // ========== RENDER ==========
@@ -1213,12 +1320,7 @@ export default function Header({ onModalStateChange }) {
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
           {/* Logo */}
           <div className="flex items-center">
-            <img 
-              src={logo} 
-              alt="LoopMart Logo" 
-              className="h-8 w-auto cursor-pointer"
-              onClick={() => navigate('/')}
-            />
+            <img src={logo} alt="LoopMart Logo" className="h-8 w-auto cursor-pointer" onClick={() => navigate('/')} />
           </div>
 
           {/* Desktop Search */}
@@ -1227,17 +1329,27 @@ export default function Header({ onModalStateChange }) {
               <form onSubmit={handleSearch} className="relative">
                 <input
                   type="text"
-                  placeholder="Search products..."
+                  placeholder="Search products, categories..."
                   value={searchQuery}
                   onChange={(e) => {
                     setSearchQuery(e.target.value);
-                    if (e.target.value.trim()) setShowSearchResults(true);
+                    // Always show the dropdown when typing
+                    setShowSearchResults(true);
+                  }}
+                  onFocus={() => {
+                    // Show dropdown when input is focused
+                    if (searchQuery.trim()) {
+                      setShowSearchResults(true);
+                    } else {
+                      setShowSearchResults(true);
+                      setSearchError('Type something to search');
+                    }
                   }}
                   className="w-full px-4 py-2 rounded-lg bg-white/30 text-black border border-white/40 placeholder-black/70 focus:ring-2 focus:ring-yellow-400 outline-none shadow-inner backdrop-blur-md"
                 />
                 <button
                   type="submit"
-                  className="absolute right-1 top-1/2 -translate-y-1/2 bg-yellow-400/90 text-black px-3 py-2 hover:bg-yellow-500 transition font-semibold shadow"
+                  className="absolute right-1 top-1/2 -translate-y-1/2 bg-yellow-400/90 text-black px-3 py-2 hover:bg-yellow-500 transition font-semibold shadow rounded-lg"
                 >
                   <FaSearch size={14} />
                 </button>
@@ -1273,25 +1385,14 @@ export default function Header({ onModalStateChange }) {
                   <span className="hidden lg:inline text-sm text-black font-medium">
                     Hi, {user.username || user.name || user.email?.split('@')[0]}
                   </span>
-                  
                   <Menu as="div" className="relative">
                     <MenuButton className="flex items-center space-x-2 focus:outline-none">
                       {profilePictureUrl ? (
                         <div className="w-10 h-10 rounded-full border-2 border-white overflow-hidden shadow-md backdrop-blur-sm">
-                          <img 
-                            src={profilePictureUrl} 
-                            alt="Profile" 
-                            className="object-cover w-full h-full"
-                            onError={(e) => {
-                              e.target.style.display = 'none';
-                            }}
-                          />
+                          <img src={profilePictureUrl} alt="Profile" className="object-cover w-full h-full" onError={(e) => { e.target.style.display = 'none'; }} />
                         </div>
                       ) : (
-                        <div
-                          className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold border border-white/40 shadow-md backdrop-blur-sm"
-                          style={{ backgroundColor: avatarColor }}
-                        >
+                        <div className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold border border-white/40 shadow-md backdrop-blur-sm" style={{ backgroundColor: avatarColor }}>
                           {getInitials(user.email, user.name, user.username)}
                         </div>
                       )}
@@ -1308,65 +1409,42 @@ export default function Header({ onModalStateChange }) {
                     >
                       <MenuItems className="absolute right-0 mt-2 w-48 bg-white backdrop-blur-md rounded-xl shadow-xl border border-white/30 py-2 text-sm text-black z-50">
                         <div className="px-4 py-2 border-b border-gray-100">
-                          <p className="font-medium text-gray-900 truncate">
-                            {user.username || user.name || user.email?.split('@')[0]}
-                          </p>
+                          <p className="font-medium text-gray-900 truncate">{user.username || user.name || user.email?.split('@')[0]}</p>
                           <p className="text-xs text-gray-500 truncate">{user.email}</p>
                         </div>
-                        
                         <MenuItem>
                           {({ active }) => (
-                            <button
-                              onClick={() => navigate('/dashboard')}
-                              className={`flex items-center w-full text-left px-4 py-2 ${active ? 'bg-yellow-400/40' : ''}`}
-                            >
-                              <FaUser className="mr-3" size={14} />
-                              Dashboard
+                            <button onClick={() => navigate('/dashboard')} className={`flex items-center w-full text-left px-4 py-2 ${active ? 'bg-yellow-400/40' : ''}`}>
+                              <FaUser className="mr-3" size={14} /> Dashboard
                             </button>
                           )}
                         </MenuItem>
                         <MenuItem>
                           {({ active }) => (
-                            <button
-                              onClick={() => navigate('/profile')}
-                              className={`flex items-center w-full text-left px-4 py-2 ${active ? 'bg-yellow-400/40' : ''}`}
-                            >
-                              <FaUser className="mr-3" size={14} />
-                              My Profile
+                            <button onClick={() => navigate('/profile')} className={`flex items-center w-full text-left px-4 py-2 ${active ? 'bg-yellow-400/40' : ''}`}>
+                              <FaUser className="mr-3" size={14} /> My Profile
                             </button>
                           )}
                         </MenuItem>
                         <MenuItem>
                           {({ active }) => (
-                            <button
-                              onClick={() => navigate('/reviews')}
-                              className={`flex items-center w-full text-left px-4 py-2 ${active ? 'bg-yellow-400/40' : ''}`}
-                            >
-                              <FaStar className="mr-3" size={14} />
-                              My Reviews
+                            <button onClick={() => navigate('/reviews')} className={`flex items-center w-full text-left px-4 py-2 ${active ? 'bg-yellow-400/40' : ''}`}>
+                              <FaStar className="mr-3" size={14} /> My Reviews
                             </button>
                           )}
                         </MenuItem>
                         <MenuItem>
                           {({ active }) => (
-                            <button
-                              onClick={() => navigate('/notifications')}
-                              className={`flex items-center w-full text-left px-4 py-2 ${active ? 'bg-yellow-400/40' : ''}`}
-                            >
-                              <FaBell className="mr-3" size={14} />
-                              Notifications ({unreadCount})
+                            <button onClick={() => navigate('/notifications')} className={`flex items-center w-full text-left px-4 py-2 ${active ? 'bg-yellow-400/40' : ''}`}>
+                              <FaBell className="mr-3" size={14} /> Notifications ({unreadCount})
                             </button>
                           )}
                         </MenuItem>
                         <div className="border-t border-white/30 my-1"></div>
                         <MenuItem>
                           {({ active }) => (
-                            <button
-                              onClick={handleLogout}
-                              className={`flex items-center w-full text-left px-4 py-2 text-red-600 ${active ? 'bg-yellow-400/40' : ''}`}
-                            >
-                              <FaSignOutAlt className="mr-3" size={14} />
-                              Logout
+                            <button onClick={handleLogout} className={`flex items-center w-full text-left px-4 py-2 text-red-600 ${active ? 'bg-yellow-400/40' : ''}`}>
+                              <FaSignOutAlt className="mr-3" size={14} /> Logout
                             </button>
                           )}
                         </MenuItem>
@@ -1394,11 +1472,14 @@ export default function Header({ onModalStateChange }) {
               <form onSubmit={handleSearch} className="relative">
                 <input
                   type="text"
-                  placeholder="Search products..."
+                  placeholder="Search products, categories..."
                   value={searchQuery}
                   onChange={(e) => {
                     setSearchQuery(e.target.value);
-                    if (e.target.value.trim()) setShowSearchResults(true);
+                    setShowSearchResults(true);
+                  }}
+                  onFocus={() => {
+                    setShowSearchResults(true);
                   }}
                   className="w-full px-4 py-2 rounded-lg bg-white/30 text-black border border-white/40 placeholder-black/70 focus:ring-2 focus:ring-yellow-400 outline-none backdrop-blur-md"
                 />
@@ -1421,63 +1502,33 @@ export default function Header({ onModalStateChange }) {
         <Dialog.Panel className="fixed top-0 right-0 w-3/4 h-full bg-white/20 backdrop-blur-lg p-6 shadow-xl border-l border-white/30">
           <div className="flex justify-between items-center mb-6">
             <img src={logo} alt="Logo" className="h-7 w-auto cursor-pointer" onClick={() => { navigate('/'); setMobileMenuOpen(false); }} />
-            <button 
-              onClick={() => setMobileMenuOpen(false)} 
-              className="p-2 hover:bg-white/30 rounded-lg text-black backdrop-blur-sm"
-            >
-              ×
-            </button>
+            <button onClick={() => setMobileMenuOpen(false)} className="p-2 hover:bg-white/30 rounded-lg text-black backdrop-blur-sm">×</button>
           </div>
-          
           <nav className="flex flex-col space-y-4">
-            <button 
-              onClick={() => { navigate('/pricing'); setMobileMenuOpen(false); }}
-              className="flex items-center px-4 py-2 hover:bg-yellow-400/40 rounded-lg transition text-black backdrop-blur-sm text-left"
-            >
+            <button onClick={() => { navigate('/pricing'); setMobileMenuOpen(false); }} className="flex items-center px-4 py-2 hover:bg-yellow-400/40 rounded-lg transition text-black backdrop-blur-sm text-left">
               Pricing
             </button>
-            
             {user ? (
               <>
                 <div className="border-t border-white/30 pt-4 mt-2">
                   <div className="flex items-center space-x-3 mb-4">
                     {profilePictureUrl ? (
                       <div className="w-12 h-12 rounded-full border-2 border-white overflow-hidden shadow-md">
-                        <img 
-                          src={profilePictureUrl} 
-                          alt="Profile" 
-                          className="object-cover w-full h-full"
-                        />
+                        <img src={profilePictureUrl} alt="Profile" className="object-cover w-full h-full" />
                       </div>
                     ) : (
-                      <div 
-                        className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold border border-white/40 shadow-md" 
-                        style={{ backgroundColor: avatarColor }}
-                      >
+                      <div className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold border border-white/40 shadow-md" style={{ backgroundColor: avatarColor }}>
                         {getInitials(user.email, user.name, user.username)}
                       </div>
                     )}
                     <div>
-                      <div className="text-sm font-medium text-black">
-                        {user.username || user.name || user.email?.split('@')[0]}
-                      </div>
+                      <div className="text-sm font-medium text-black">{user.username || user.name || user.email?.split('@')[0]}</div>
                       <div className="text-xs text-gray-600">{user.email}</div>
                     </div>
                   </div>
-                  
-                  <button 
-                    onClick={() => { navigate('/notifications'); setMobileMenuOpen(false); }}
-                    className="flex items-center justify-between w-full px-4 py-3 hover:bg-yellow-400/40 rounded-lg transition text-black backdrop-blur-sm mb-4 text-left"
-                  >
-                    <div className="flex items-center">
-                      <FaBell className="mr-3" />
-                      <span>Notifications</span>
-                    </div>
-                    {unreadCount > 0 && (
-                      <span className="bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                        {unreadCount}
-                      </span>
-                    )}
+                  <button onClick={() => { navigate('/notifications'); setMobileMenuOpen(false); }} className="flex items-center justify-between w-full px-4 py-3 hover:bg-yellow-400/40 rounded-lg transition text-black backdrop-blur-sm mb-4 text-left">
+                    <div className="flex items-center"><FaBell className="mr-3" /><span>Notifications</span></div>
+                    {unreadCount > 0 && <span className="bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">{unreadCount}</span>}
                   </button>
                 </div>
                 <button onClick={() => { navigate('/dashboard'); setMobileMenuOpen(false); }} className="flex items-center px-4 py-2 hover:bg-yellow-400/40 rounded-lg transition text-black backdrop-blur-sm text-left">
@@ -1495,16 +1546,10 @@ export default function Header({ onModalStateChange }) {
               </>
             ) : (
               <div className="flex flex-col space-y-2">
-                <button 
-                  onClick={() => { setShowLogin(true); setMobileMenuOpen(false); }} 
-                  className="flex items-center bg-black/60 text-white px-4 py-2 rounded-lg hover:bg-yellow-400 hover:text-black transition text-left backdrop-blur-sm"
-                >
+                <button onClick={() => { setShowLogin(true); setMobileMenuOpen(false); }} className="flex items-center bg-black/60 text-white px-4 py-2 rounded-lg hover:bg-yellow-400 hover:text-black transition text-left backdrop-blur-sm">
                   <RxAvatar className="mr-2" /> Login
                 </button>
-                <button 
-                  onClick={() => { setShowSignup(true); setMobileMenuOpen(false); }} 
-                  className="flex items-center bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition text-left backdrop-blur-sm"
-                >
+                <button onClick={() => { setShowSignup(true); setMobileMenuOpen(false); }} className="flex items-center bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition text-left backdrop-blur-sm">
                   <FaUserPlus className="mr-2" /> Sign Up
                 </button>
               </div>
@@ -1513,7 +1558,7 @@ export default function Header({ onModalStateChange }) {
         </Dialog.Panel>
       </Dialog>
 
-      {/* Login Modal */}
+      {/* Auth Modals */}
       <AuthModal
         type="login"
         isOpen={showLogin}
@@ -1529,14 +1574,9 @@ export default function Header({ onModalStateChange }) {
         onRememberMeChange={setRememberMe}
         onGoogleLogin={handleGoogleLogin}
         onForgotPassword={handleOpenForgotPassword}
-        onSwitchToSignup={() => {
-          setShowLogin(false);
-          setShowSignup(true);
-          setMessage({ text: '', type: 'success' });
-        }}
+        onSwitchToSignup={() => { setShowLogin(false); setShowSignup(true); setMessage({ text: '', type: 'success' }); }}
       />
 
-      {/* Signup Modal */}
       <AuthModal
         type="signup"
         isOpen={showSignup}
@@ -1551,14 +1591,9 @@ export default function Header({ onModalStateChange }) {
         rememberMe={rememberMe}
         onRememberMeChange={setRememberMe}
         onGoogleLogin={handleGoogleLogin}
-        onSwitchToLogin={() => {
-          setShowSignup(false);
-          setShowLogin(true);
-          setMessage({ text: '', type: 'success' });
-        }}
+        onSwitchToLogin={() => { setShowSignup(false); setShowLogin(true); setMessage({ text: '', type: 'success' }); }}
       />
 
-      {/* Forgot Password Modal */}
       <ForgotPasswordModal
         isOpen={showForgotPassword}
         onClose={handleCloseForgotPassword}
@@ -1575,10 +1610,7 @@ export default function Header({ onModalStateChange }) {
         onToggleNewPassword={toggleNewPasswordVisibility}
         onToggleConfirmPassword={toggleConfirmPasswordVisibility}
         onBackToEmail={handleCloseForgotPassword}
-        onSwitchToLogin={() => {
-          handleCloseForgotPassword();
-          setShowLogin(true);
-        }}
+        onSwitchToLogin={() => { handleCloseForgotPassword(); setShowLogin(true); }}
       />
     </>
   );
@@ -1586,22 +1618,9 @@ export default function Header({ onModalStateChange }) {
 
 // ========== AUTH MODAL COMPONENT ==========
 const AuthModal = ({
-  type,
-  isOpen,
-  onClose,
-  formData,
-  onFormChange,
-  onSubmit,
-  loading,
-  message,
-  showPassword,
-  onTogglePassword,
-  rememberMe,
-  onRememberMeChange,
-  onGoogleLogin,
-  onForgotPassword,
-  onSwitchToSignup,
-  onSwitchToLogin,
+  type, isOpen, onClose, formData, onFormChange, onSubmit, loading, message,
+  showPassword, onTogglePassword, rememberMe, onRememberMeChange,
+  onGoogleLogin, onForgotPassword, onSwitchToSignup, onSwitchToLogin,
 }) => {
   const isLogin = type === 'login';
 
@@ -1629,7 +1648,6 @@ const AuthModal = ({
               <div className="flex items-center justify-center mt-2">
                 <img src={logo} alt="Logo" className="h-8 w-auto" />
               </div>
-
               <button
                 type="button"
                 onClick={onGoogleLogin}
@@ -1639,7 +1657,6 @@ const AuthModal = ({
                 <FaGoogle className="text-red-500" size={18} />
                 <span className="font-medium">Continue with Google</span>
               </button>
-              
               <div className="relative my-6">
                 <div className="absolute inset-0 flex items-center">
                   <div className="w-full border-t border-gray-300"></div>
@@ -1661,7 +1678,6 @@ const AuthModal = ({
                 className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-yellow-400 outline-none text-sm"
                 disabled={loading}
               />
-              
               <div className="relative">
                 <input
                   type={showPassword ? "text" : "password"}
@@ -1710,21 +1726,11 @@ const AuthModal = ({
 
               <div className="flex items-center justify-between text-xs sm:text-sm">
                 <label className="flex items-center space-x-2">
-                  <input 
-                    type="checkbox" 
-                    checked={rememberMe}
-                    onChange={(e) => onRememberMeChange(e.target.checked)}
-                    disabled={loading} 
-                  /> 
+                  <input type="checkbox" checked={rememberMe} onChange={(e) => onRememberMeChange(e.target.checked)} disabled={loading} /> 
                   <span>Remember me</span>
                 </label>
                 {isLogin && onForgotPassword && (
-                  <button
-                    type="button"
-                    className="text-red-600 hover:underline disabled:opacity-50"
-                    disabled={loading}
-                    onClick={onForgotPassword}
-                  >
+                  <button type="button" className="text-red-600 hover:underline disabled:opacity-50" disabled={loading} onClick={onForgotPassword}>
                     Forgot password?
                   </button>
                 )}
@@ -1744,15 +1750,8 @@ const AuthModal = ({
               </button>
 
               {message.text && (
-                <div
-                  className={`flex items-center justify-center mt-3 text-sm font-medium p-3 rounded-lg ${
-                    message.type === 'success' 
-                      ? 'bg-green-50 text-green-700 border border-green-200' 
-                      : 'bg-red-50 text-red-700 border border-red-200'
-                  }`}
-                >
-                  {message.icon}
-                  {message.text}
+                <div className={`flex items-center justify-center mt-3 text-sm font-medium p-3 rounded-lg ${message.type === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+                  {message.icon}{message.text}
                 </div>
               )}
 
@@ -1785,28 +1784,12 @@ const AuthModal = ({
 
 // ========== FORGOT PASSWORD MODAL COMPONENT ==========
 const ForgotPasswordModal = ({
-  isOpen,
-  onClose,
-  step,
-  formData,
-  onFormChange,
-  passwordConfirmation,
-  onPasswordConfirmationChange,
-  onSubmit,
-  loading,
-  message,
-  showNewPassword,
-  showConfirmPassword,
-  onToggleNewPassword,
-  onToggleConfirmPassword,
-  onBackToEmail,
-  onSwitchToLogin,
+  isOpen, onClose, step, formData, onFormChange, passwordConfirmation,
+  onPasswordConfirmationChange, onSubmit, loading, message,
+  showNewPassword, showConfirmPassword, onToggleNewPassword, onToggleConfirmPassword,
+  onBackToEmail, onSwitchToLogin,
 }) => {
-  const stepIcons = {
-    email: '1',
-    otp: '2', 
-    reset: '3'
-  };
+  const stepIcons = { email: '1', otp: '2', reset: '3' };
 
   return (
     <AnimatePresence>
@@ -1830,21 +1813,13 @@ const ForgotPasswordModal = ({
               <div className="flex items-center justify-center mt-2">
                 <img src={logo} alt="Logo" className="h-8 w-auto" />
               </div>
-              
-              {/* Step Indicator */}
               <div className="flex justify-center mt-4 mb-2">
                 <div className="flex items-center">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step === 'email' ? 'bg-yellow-500 text-white' : 'bg-gray-300 text-gray-600'}`}>
-                    {stepIcons.email}
-                  </div>
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step === 'email' ? 'bg-yellow-500 text-white' : 'bg-gray-300 text-gray-600'}`}>{stepIcons.email}</div>
                   <div className={`w-12 h-1 ${step === 'otp' || step === 'reset' ? 'bg-yellow-500' : 'bg-gray-300'}`}></div>
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step === 'otp' || step === 'reset' ? 'bg-yellow-500 text-white' : 'bg-gray-300 text-gray-600'}`}>
-                    {stepIcons.otp}
-                  </div>
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step === 'otp' || step === 'reset' ? 'bg-yellow-500 text-white' : 'bg-gray-300 text-gray-600'}`}>{stepIcons.otp}</div>
                   <div className={`w-12 h-1 ${step === 'reset' ? 'bg-yellow-500' : 'bg-gray-300'}`}></div>
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step === 'reset' ? 'bg-yellow-500 text-white' : 'bg-gray-300 text-gray-600'}`}>
-                    {stepIcons.reset}
-                  </div>
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step === 'reset' ? 'bg-yellow-500 text-white' : 'bg-gray-300 text-gray-600'}`}>{stepIcons.reset}</div>
                 </div>
               </div>
               <div className="text-xs text-gray-500">
@@ -1857,9 +1832,7 @@ const ForgotPasswordModal = ({
             <form onSubmit={onSubmit} className="space-y-4">
               {step === 'email' && (
                 <>
-                  <p className="text-sm text-gray-600 text-center">
-                    Enter your email address to receive a verification code.
-                  </p>
+                  <p className="text-sm text-gray-600 text-center">Enter your email address to receive a verification code.</p>
                   <input
                     type="email"
                     name="email"
@@ -1875,17 +1848,10 @@ const ForgotPasswordModal = ({
 
               {step === 'otp' && (
                 <>
-                  <button
-                    type="button"
-                    onClick={onBackToEmail}
-                    className="flex items-center text-sm text-gray-600 hover:text-yellow-500 mb-2"
-                  >
-                    <FaArrowLeft className="mr-1" size={12} />
-                    Back to email
+                  <button type="button" onClick={onBackToEmail} className="flex items-center text-sm text-gray-600 hover:text-yellow-500 mb-2">
+                    <FaArrowLeft className="mr-1" size={12} /> Back to email
                   </button>
-                  <p className="text-sm text-gray-600 text-center">
-                    We sent a 6-digit code to <strong>{formData.email}</strong>
-                  </p>
+                  <p className="text-sm text-gray-600 text-center">We sent a 6-digit code to <strong>{formData.email}</strong></p>
                   <input
                     type="text"
                     name="otp"
@@ -1904,13 +1870,8 @@ const ForgotPasswordModal = ({
 
               {step === 'reset' && (
                 <>
-                  <button
-                    type="button"
-                    onClick={onBackToEmail}
-                    className="flex items-center text-sm text-gray-600 hover:text-yellow-500 mb-2"
-                  >
-                    <FaArrowLeft className="mr-1" size={12} />
-                    Back to verification
+                  <button type="button" onClick={onBackToEmail} className="flex items-center text-sm text-gray-600 hover:text-yellow-500 mb-2">
+                    <FaArrowLeft className="mr-1" size={12} /> Back to verification
                   </button>
                   <p className="text-sm text-gray-600 text-center">Create your new password</p>
                   <div className="relative">
@@ -1925,16 +1886,10 @@ const ForgotPasswordModal = ({
                       className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-yellow-400 outline-none text-sm pr-10"
                       disabled={loading}
                     />
-                    <button
-                      type="button"
-                      onClick={onToggleNewPassword}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 disabled:opacity-50"
-                      disabled={loading}
-                    >
+                    <button type="button" onClick={onToggleNewPassword} className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 disabled:opacity-50" disabled={loading}>
                       {showNewPassword ? <FaEyeSlash size={16} /> : <FaEye size={16} />}
                     </button>
                   </div>
-                  
                   <div className="relative">
                     <input
                       type={showConfirmPassword ? "text" : "password"}
@@ -1946,16 +1901,10 @@ const ForgotPasswordModal = ({
                       className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-yellow-400 outline-none text-sm pr-10"
                       disabled={loading}
                     />
-                    <button
-                      type="button"
-                      onClick={onToggleConfirmPassword}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 disabled:opacity-50"
-                      disabled={loading}
-                    >
+                    <button type="button" onClick={onToggleConfirmPassword} className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 disabled:opacity-50" disabled={loading}>
                       {showConfirmPassword ? <FaEyeSlash size={16} /> : <FaEye size={16} />}
                     </button>
                   </div>
-                  
                   {formData.password && passwordConfirmation && formData.password !== passwordConfirmation && (
                     <div className="text-red-500 text-xs mt-1 flex items-center p-2 bg-red-50 rounded border border-red-200">
                       <FaTimesCircle className="inline mr-1" /> Passwords do not match
@@ -1970,50 +1919,27 @@ const ForgotPasswordModal = ({
                 className="w-full bg-black text-white py-3 rounded-lg hover:bg-yellow-500 hover:text-black transition disabled:opacity-50 text-sm sm:text-base font-semibold flex items-center justify-center gap-2"
               >
                 {loading ? (
-                  <>
-                    <FaSpinner className="animate-spin" size={16} />
-                    Processing...
-                  </>
+                  <><FaSpinner className="animate-spin" size={16} /> Processing...</>
                 ) : (
-                  <>
-                    {step === 'email' ? 'Send Code' :
-                     step === 'otp' ? 'Verify Code' : 
-                     'Reset Password'}
-                  </>
+                  <>{step === 'email' ? 'Send Code' : step === 'otp' ? 'Verify Code' : 'Reset Password'}</>
                 )}
               </button>
 
               {message.text && (
-                <div
-                  className={`flex items-center justify-center mt-3 text-sm font-medium p-3 rounded-lg ${
-                    message.type === 'success' 
-                      ? 'bg-green-50 text-green-700 border border-green-200' 
-                      : 'bg-red-50 text-red-700 border border-red-200'
-                  }`}
-                >
-                  {message.icon}
-                  {message.text}
+                <div className={`flex items-center justify-center mt-3 text-sm font-medium p-3 rounded-lg ${message.type === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+                  {message.icon}{message.text}
                 </div>
               )}
 
               <p className="text-center text-xs sm:text-sm mt-4">
                 Remember your password?{' '}
-                <button
-                  type="button"
-                  className="text-red-600 hover:underline font-semibold disabled:opacity-50"
-                  onClick={onSwitchToLogin}
-                  disabled={loading}
-                >
+                <button type="button" className="text-red-600 hover:underline font-semibold disabled:opacity-50" onClick={onSwitchToLogin} disabled={loading}>
                   Back to Login
                 </button>
               </p>
             </form>
 
-            <button
-              onClick={onClose}
-              className="absolute top-3 right-4 text-black text-xl hover:text-red-600 disabled:opacity-50"
-              disabled={loading}
-            >
+            <button onClick={onClose} className="absolute top-3 right-4 text-black text-xl hover:text-red-600 disabled:opacity-50" disabled={loading}>
               ×
             </button>
           </motion.div>

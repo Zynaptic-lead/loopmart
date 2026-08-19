@@ -1,4 +1,4 @@
-// contexts/SubscriptionContext.jsx
+// contexts/SubscriptionContext.jsx - FIXED VERSION
 import React, { createContext, useState, useContext, useCallback, useEffect } from 'react';
 
 const SubscriptionContext = createContext();
@@ -64,7 +64,10 @@ export const SubscriptionProvider = ({ children }) => {
       const data = await response.json();
       console.log('Subscription check response:', data);
 
-      if (response.ok && (data.status === true || data.success === true)) {
+      // Check if the response is successful
+      const isSuccess = response.ok && (data.status === true || data.success === true);
+      
+      if (isSuccess) {
         // Check if subscription is active
         const subscriptionData = data.data;
         const isActive = subscriptionData?.active === true || 
@@ -94,13 +97,9 @@ export const SubscriptionProvider = ({ children }) => {
 
   // Refresh subscription - force a fresh check
   const refreshSubscription = useCallback(async () => {
-    setLoading(true);
-    try {
-      const result = await checkSubscription();
-      return result;
-    } finally {
-      setLoading(false);
-    }
+    // Just call checkSubscription directly - it handles its own loading state
+    const result = await checkSubscription();
+    return result;
   }, [checkSubscription]);
 
   // Initialize subscription - uses POST /v1/subscription
@@ -219,7 +218,8 @@ export const SubscriptionProvider = ({ children }) => {
       console.log('Auto-checking subscription on mount...');
       checkSubscription();
     }
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run once on mount
 
   const value = {
     hasSubscription,
