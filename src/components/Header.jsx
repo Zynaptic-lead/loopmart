@@ -59,7 +59,6 @@ const getImageUrl = (imagePath) => {
 const detectCategory = (query) => {
   const queryLower = query.toLowerCase().trim();
   
-  // Check if query matches category name directly
   for (const category of CATEGORIES) {
     if (queryLower === category.name.toLowerCase() || 
         queryLower === category.name.toLowerCase().replace('s', '') ||
@@ -68,7 +67,6 @@ const detectCategory = (query) => {
     }
   }
   
-  // Check keywords
   for (const category of CATEGORIES) {
     for (const keyword of category.keywords) {
       if (queryLower.includes(keyword)) {
@@ -598,7 +596,6 @@ export default function Header({ onModalStateChange }) {
     setSearchError(null);
     const cleanQuery = query.trim();
     
-    // Detect category from search query
     const category = detectCategory(cleanQuery);
     setDetectedCategory(category);
 
@@ -606,7 +603,6 @@ export default function Header({ onModalStateChange }) {
       let results = [];
       let allProducts = [];
 
-      // Fetch all products from the correct endpoint
       try {
         const response = await fetch(`${API_URL}/allproduct`, {
           method: 'GET',
@@ -638,23 +634,19 @@ export default function Header({ onModalStateChange }) {
       if (allProducts.length > 0) {
         const queryLower = cleanQuery.toLowerCase();
         
-        // Filter products - search in ALL fields
         const filteredProducts = allProducts.filter(product => {
-          // Get all searchable fields
           const title = (product.title || product.name || product.product_name || '').toLowerCase();
           const categoryName = (product.category || product.product_category || product.category_name || product.type || '').toLowerCase();
           const description = (product.description || product.product_description || '').toLowerCase();
           const tags = (product.tags || product.keywords || '').toLowerCase();
           const brand = (product.brand || '').toLowerCase();
           
-          // Check if query matches ANY field
           const matchesTitle = title.includes(queryLower);
           const matchesCategory = categoryName.includes(queryLower);
           const matchesDescription = description.includes(queryLower);
           const matchesTags = tags.includes(queryLower);
           const matchesBrand = brand.includes(queryLower);
           
-          // If we have a detected category, also check if product belongs to that category
           let matchesDetectedCategory = true;
           if (category) {
             const categoryLower = category.toLowerCase();
@@ -701,11 +693,8 @@ export default function Header({ onModalStateChange }) {
             description: item.description || item.product_description || ''
           };
         });
-        
-        console.log('Search results found:', results.length);
       }
 
-      // If still no results, try lenient search
       if (results.length === 0 && allProducts.length > 0) {
         const queryLower = cleanQuery.toLowerCase();
         
@@ -775,12 +764,8 @@ export default function Header({ onModalStateChange }) {
 
   const handleSearch = (e) => {
     e.preventDefault();
-    setShowSearchResults(true);
     if (searchQuery.trim()) {
       searchProducts(searchQuery);
-    } else {
-      setSearchResults([]);
-      setSearchError('Please enter a search term');
     }
   };
 
@@ -1217,19 +1202,15 @@ export default function Header({ onModalStateChange }) {
     };
   }, []);
 
+  // Search debounce - only runs when searchQuery changes and dropdown is open
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (searchQuery.trim()) {
+      if (searchQuery.trim() && showSearchResults) {
         searchProducts(searchQuery);
-      } else {
-        setSearchResults([]);
-        setDetectedCategory(null);
-        setSearchError('Type something to search');
-        setShowSearchResults(true);
       }
     }, 500);
     return () => clearTimeout(timer);
-  }, [searchQuery]);
+  }, [searchQuery, showSearchResults]);
 
   useEffect(() => {
     if (onModalStateChange) {
@@ -1278,15 +1259,35 @@ export default function Header({ onModalStateChange }) {
                   value={searchQuery}
                   onChange={(e) => {
                     setSearchQuery(e.target.value);
-                    setShowSearchResults(true);
+                    // Only show results if dropdown is already open
+                    if (showSearchResults) {
+                      if (e.target.value.trim()) {
+                        searchProducts(e.target.value);
+                      } else {
+                        setSearchResults([]);
+                        setSearchError('Type something to search');
+                      }
+                    }
                   }}
                   onFocus={() => {
                     setShowSearchResults(true);
+                    if (searchQuery.trim()) {
+                      searchProducts(searchQuery);
+                    } else {
+                      setSearchResults([]);
+                      setSearchError('Type something to search');
+                    }
                   }}
                   className="w-full px-4 py-2 rounded-lg bg-white/30 text-black border border-white/40 placeholder-black/70 focus:ring-2 focus:ring-yellow-400 outline-none shadow-inner backdrop-blur-md"
                 />
                 <button
                   type="submit"
+                  onClick={() => {
+                    setShowSearchResults(true);
+                    if (searchQuery.trim()) {
+                      searchProducts(searchQuery);
+                    }
+                  }}
                   className="absolute right-1 top-1/2 -translate-y-1/2 bg-yellow-400/90 text-black px-3 py-2 hover:bg-yellow-500 transition font-semibold shadow rounded-lg"
                 >
                   <FaSearch size={14} />
@@ -1414,15 +1415,34 @@ export default function Header({ onModalStateChange }) {
                   value={searchQuery}
                   onChange={(e) => {
                     setSearchQuery(e.target.value);
-                    setShowSearchResults(true);
+                    if (showSearchResults) {
+                      if (e.target.value.trim()) {
+                        searchProducts(e.target.value);
+                      } else {
+                        setSearchResults([]);
+                        setSearchError('Type something to search');
+                      }
+                    }
                   }}
                   onFocus={() => {
                     setShowSearchResults(true);
+                    if (searchQuery.trim()) {
+                      searchProducts(searchQuery);
+                    } else {
+                      setSearchResults([]);
+                      setSearchError('Type something to search');
+                    }
                   }}
                   className="w-full px-4 py-2 rounded-lg bg-white/30 text-black border border-white/40 placeholder-black/70 focus:ring-2 focus:ring-yellow-400 outline-none backdrop-blur-md"
                 />
                 <button
                   type="submit"
+                  onClick={() => {
+                    setShowSearchResults(true);
+                    if (searchQuery.trim()) {
+                      searchProducts(searchQuery);
+                    }
+                  }}
                   className="absolute right-1 top-1/2 -translate-y-1/2 bg-yellow-400/90 text-black px-3 py-1 rounded-lg hover:bg-yellow-500 transition shadow"
                 >
                   <FaSearch size={14} />

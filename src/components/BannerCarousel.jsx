@@ -5,15 +5,15 @@ import { motion } from 'framer-motion'
 import 'swiper/css'
 
 const banners = [
-  '/banners/banner1.jfif',
-  '/banners/banner2.jfif',
-  '/banners/banner3.jfif',
-  '/banners/banner4.jfif',
-  '/banners/banner5.jfif',
-  '/banners/banner6.jfif',
-  '/banners/banner7.jfif',
-  '/banners/banner8.jfif',
-  '/banners/banner9.jfif',
+  '/banners/banner1.avif',
+  '/banners/banner2.avif',
+  '/banners/banner3.avif',
+  '/banners/banner4.avif',
+  '/banners/banner5.avif',
+  '/banners/banner6.avif',
+  '/banners/banner7.avif',
+  '/banners/banner8.avif',
+  '/banners/banner9.avif',
 ]
 
 export default function BannerCarousel() {
