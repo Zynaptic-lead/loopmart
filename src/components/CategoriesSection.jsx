@@ -1260,4 +1260,8 @@ const MobileFilters = ({ filters, onFilterChange }) => (
       />
     </div>
   </div>
+<<<<<<< HEAD
 );
+=======
+);
+>>>>>>> 6d6e87f8b875ee9da1bd425d7468b36320ca867f
