@@ -18,15 +18,14 @@ import logo from '../assets/logo.png';
 
 // ========== CATEGORIES DATA ==========
 const CATEGORIES = [
-  { name: "Gadgets", keywords: ['gadget', 'electronics', 'phone', 'laptop', 'computer', 'tablet', 'smartphone', 'device', 'tech', 'electronic'] },
-  { name: "Vehicles", keywords: ['vehicle', 'car', 'truck', 'motorcycle', 'bike', 'auto', 'automobile', 'van', 'bus', 'suv', 'sedan'] },
-  { name: "Houses", keywords: ['house', 'apartment', 'flat', 'property', 'home', 'building', 'real estate', 'villa', 'duplex', 'bungalow'] },
-  { name: "Fashion", keywords: ['fashion', 'clothing', 'dress', 'shirt', 'pants', 'jeans', 'jacket', 'shoe', 'sneaker', 'bag', 'accessory', 'wear', 'outfit'] },
-  { name: "Jobs", keywords: ['job', 'work', 'career', 'employment', 'position', 'vacancy', 'hiring', 'recruitment', 'opportunity'] },
-  { name: "Cosmetics", keywords: ['cosmetic', 'makeup', 'beauty', 'skincare', 'lipstick', 'foundation', 'perfume', 'cream', 'lotion', 'face'] },
-  { name: "Fruits", keywords: ['fruit', 'apple', 'banana', 'orange', 'grape', 'mango', 'pineapple', 'vegetable', 'food', 'produce', 'strawberry'] },
-  { name: "Kitchen Utensils", keywords: ['kitchen', 'utensil', 'cookware', 'pan', 'pot', 'knife', 'spatula', 'cutting board', 'appliance', 'oven', 'blender'] },
-  { name: "Others", keywords: ['other', 'misc', 'miscellaneous', 'general'] }
+  { name: "Gadgets", keywords: ['gadget', 'electronics', 'phone', 'laptop', 'computer', 'tablet', 'smartphone', 'device', 'tech'] },
+  { name: "Vehicles", keywords: ['vehicle', 'car', 'truck', 'motorcycle', 'bike', 'auto', 'automobile', 'van', 'bus'] },
+  { name: "Houses", keywords: ['house', 'apartment', 'flat', 'property', 'home', 'building', 'real estate'] },
+  { name: "Fashion", keywords: ['fashion', 'clothing', 'dress', 'shirt', 'pants', 'jeans', 'jacket', 'shoe', 'sneaker', 'bag'] },
+  { name: "Jobs", keywords: ['job', 'work', 'career', 'employment', 'position', 'vacancy', 'hiring'] },
+  { name: "Cosmetics", keywords: ['cosmetic', 'makeup', 'beauty', 'skincare', 'lipstick', 'foundation', 'perfume', 'cream'] },
+  { name: "Fruits", keywords: ['fruit', 'apple', 'banana', 'orange', 'grape', 'mango', 'pineapple', 'vegetable', 'food'] },
+  { name: "Kitchen Utensils", keywords: ['kitchen', 'utensil', 'cookware', 'pan', 'pot', 'knife', 'spatula', 'appliance'] }
 ];
 
 // ========== HELPER FUNCTIONS ==========
@@ -50,7 +49,6 @@ const getProfileImageUrl = (photoFilename) => {
   return `https://loopmart.ng/uploads/users/${photoFilename}`;
 };
 
-// ========== IMAGE URL HELPER ==========
 const getImageUrl = (imagePath) => {
   if (!imagePath) return null;
   if (imagePath.startsWith('http')) return imagePath;
@@ -58,9 +56,19 @@ const getImageUrl = (imagePath) => {
   return `https://loopmart.ng/uploads/products/${imagePath}`;
 };
 
-// ========== CATEGORY DETECTION ==========
 const detectCategory = (query) => {
   const queryLower = query.toLowerCase().trim();
+  
+  // Check if query matches category name directly
+  for (const category of CATEGORIES) {
+    if (queryLower === category.name.toLowerCase() || 
+        queryLower === category.name.toLowerCase().replace('s', '') ||
+        queryLower === category.name.toLowerCase() + 's') {
+      return category.name;
+    }
+  }
+  
+  // Check keywords
   for (const category of CATEGORIES) {
     for (const keyword of category.keywords) {
       if (queryLower.includes(keyword)) {
@@ -68,12 +76,8 @@ const detectCategory = (query) => {
       }
     }
   }
+  
   return null;
-};
-
-const getCategoryKeywords = (categoryName) => {
-  const category = CATEGORIES.find(c => c.name === categoryName);
-  return category ? category.keywords : [];
 };
 
 // ========== MAIN COMPONENT ==========
@@ -582,15 +586,11 @@ export default function Header({ onModalStateChange }) {
 
   // ========== SEARCH FUNCTIONS ==========
   const searchProducts = async (query) => {
-    // Don't close the dropdown - keep it open even with empty results
-    // We want users to see the "No products found" message
-    
     if (!query.trim()) {
       setSearchResults([]);
       setDetectedCategory(null);
-      setSearchError(null);
-      // Keep the dropdown open if it was already open
-      // Don't set showSearchResults to false here
+      setSearchError('Type something to search');
+      setShowSearchResults(true);
       return;
     }
 
@@ -606,9 +606,8 @@ export default function Header({ onModalStateChange }) {
       let results = [];
       let allProducts = [];
 
-      // Fetch all products from the correct endpoint: /allproduct
+      // Fetch all products from the correct endpoint
       try {
-        console.log('Fetching products from:', `${API_URL}/allproduct`);
         const response = await fetch(`${API_URL}/allproduct`, {
           method: 'GET',
           headers: { 'Accept': 'application/json' },
@@ -617,9 +616,7 @@ export default function Header({ onModalStateChange }) {
 
         if (response.ok) {
           const data = await response.json();
-          console.log('Products response:', data);
           
-          // Parse the response - handle different data structures
           if (data.status && data.data && Array.isArray(data.data)) {
             allProducts = data.data;
           } else if (data.data && Array.isArray(data.data)) {
@@ -633,55 +630,44 @@ export default function Header({ onModalStateChange }) {
           } else if (data.result && Array.isArray(data.result)) {
             allProducts = data.result;
           }
-          
-          console.log('Parsed products count:', allProducts.length);
-        } else {
-          console.error('Failed to fetch products:', response.status);
         }
       } catch (error) {
         console.error('Error fetching products:', error);
       }
 
-      // If we got products, filter them client-side
       if (allProducts.length > 0) {
         const queryLower = cleanQuery.toLowerCase();
         
-        // Filter products based on query and category
+        // Filter products - search in ALL fields
         const filteredProducts = allProducts.filter(product => {
-          // Build searchable text from product
-          const searchableText = [
-            product.title,
-            product.name,
-            product.product_name,
-            product.category,
-            product.product_category,
-            product.category_name,
-            product.description,
-            product.product_description,
-            product.tags,
-            product.keywords,
-            product.brand,
-            product.type,
-            product.subcategory
-          ].filter(Boolean).join(' ').toLowerCase();
-
-          // Check if query matches
-          const matchesQuery = searchableText.includes(queryLower);
+          // Get all searchable fields
+          const title = (product.title || product.name || product.product_name || '').toLowerCase();
+          const categoryName = (product.category || product.product_category || product.category_name || product.type || '').toLowerCase();
+          const description = (product.description || product.product_description || '').toLowerCase();
+          const tags = (product.tags || product.keywords || '').toLowerCase();
+          const brand = (product.brand || '').toLowerCase();
           
-          // Check if category matches
-          let matchesCategory = true;
+          // Check if query matches ANY field
+          const matchesTitle = title.includes(queryLower);
+          const matchesCategory = categoryName.includes(queryLower);
+          const matchesDescription = description.includes(queryLower);
+          const matchesTags = tags.includes(queryLower);
+          const matchesBrand = brand.includes(queryLower);
+          
+          // If we have a detected category, also check if product belongs to that category
+          let matchesDetectedCategory = true;
           if (category) {
-            const productCategory = (product.category || product.product_category || product.category_name || product.type || '').toLowerCase();
-            const categoryKeywords = getCategoryKeywords(category);
-            matchesCategory = productCategory.includes(category.toLowerCase()) || 
-                             categoryKeywords.some(kw => productCategory.includes(kw));
+            const categoryLower = category.toLowerCase();
+            matchesDetectedCategory = categoryName.includes(categoryLower) || 
+                                     categoryName.includes(categoryLower.replace('s', '')) ||
+                                     categoryLower.includes(categoryName);
           }
-
-          return matchesQuery && matchesCategory;
+          
+          return (matchesTitle || matchesCategory || matchesDescription || matchesTags || matchesBrand) && 
+                 matchesDetectedCategory;
         });
 
         results = filteredProducts.map(item => {
-          // Extract image URL - handle different formats
           let imageUrl = null;
           try {
             if (item.image_url && typeof item.image_url === 'string' && item.image_url.startsWith('[')) {
@@ -701,7 +687,6 @@ export default function Header({ onModalStateChange }) {
               imageUrl = getImageUrl(item.images[0]);
             }
           } catch (e) {
-            console.log('Error parsing image:', e);
             imageUrl = item.image_url || item.image || item.product_image || null;
             if (imageUrl) imageUrl = getImageUrl(imageUrl);
           }
@@ -717,118 +702,83 @@ export default function Header({ onModalStateChange }) {
           };
         });
         
-        console.log('Filtered results:', results.length);
+        console.log('Search results found:', results.length);
       }
 
-      // If no results from client-side filtering, try search endpoints
-      if (results.length === 0) {
-        const searchEndpoints = [
-          `${API_URL}/search?q=${encodeURIComponent(cleanQuery)}`,
-          `${API_URL}/v1/search/products?searchParams=${encodeURIComponent(cleanQuery)}`,
-          `${API_URL}/products/search?query=${encodeURIComponent(cleanQuery)}`
-        ];
-
-        if (category) {
-          searchEndpoints.unshift(
-            `${API_URL}/search?q=${encodeURIComponent(cleanQuery)}&category=${encodeURIComponent(category)}`
-          );
-        }
-
-        for (const endpoint of searchEndpoints) {
-          try {
-            console.log('Trying search endpoint:', endpoint);
-            const response = await fetch(endpoint, {
-              headers: { 'Accept': 'application/json' },
-              credentials: 'include',
-            });
-            
-            if (response.ok) {
-              const data = await response.json();
-              let parsedResults = [];
-              
-              if (data.status && data.data && Array.isArray(data.data)) {
-                parsedResults = data.data;
-              } else if (data.data && Array.isArray(data.data)) {
-                parsedResults = data.data;
-              } else if (Array.isArray(data)) {
-                parsedResults = data;
-              } else if (data.products && Array.isArray(data.products)) {
-                parsedResults = data.products;
-              } else if (data.result && Array.isArray(data.result)) {
-                parsedResults = data.result;
+      // If still no results, try lenient search
+      if (results.length === 0 && allProducts.length > 0) {
+        const queryLower = cleanQuery.toLowerCase();
+        
+        const lenientResults = allProducts.filter(product => {
+          const searchableText = [
+            product.title, product.name, product.product_name,
+            product.category, product.product_category, product.category_name,
+            product.description, product.product_description,
+            product.tags, product.keywords, product.brand, product.type
+          ].filter(Boolean).join(' ').toLowerCase();
+          
+          return searchableText.includes(queryLower);
+        });
+        
+        if (lenientResults.length > 0) {
+          results = lenientResults.map(item => {
+            let imageUrl = null;
+            try {
+              if (item.image_url && typeof item.image_url === 'string' && item.image_url.startsWith('[')) {
+                const parsed = JSON.parse(item.image_url);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                  imageUrl = getImageUrl(parsed[0]);
+                }
+              } else if (item.image_url) {
+                imageUrl = getImageUrl(item.image_url);
+              } else if (item.image) {
+                imageUrl = getImageUrl(item.image);
+              } else if (item.product_image) {
+                imageUrl = getImageUrl(item.product_image);
+              } else if (item.photo) {
+                imageUrl = getImageUrl(item.photo);
               }
-
-              if (parsedResults.length > 0) {
-                results = parsedResults.map((item) => {
-                  let imageUrl = null;
-                  try {
-                    if (item.image_url && typeof item.image_url === 'string' && item.image_url.startsWith('[')) {
-                      const parsed = JSON.parse(item.image_url);
-                      if (Array.isArray(parsed) && parsed.length > 0) {
-                        imageUrl = getImageUrl(parsed[0]);
-                      }
-                    } else if (item.image_url) {
-                      imageUrl = getImageUrl(item.image_url);
-                    } else if (item.image) {
-                      imageUrl = getImageUrl(item.image);
-                    } else if (item.product_image) {
-                      imageUrl = getImageUrl(item.product_image);
-                    } else if (item.photo) {
-                      imageUrl = getImageUrl(item.photo);
-                    }
-                  } catch (e) {
-                    imageUrl = item.image_url || item.image || item.product_image || null;
-                    if (imageUrl) imageUrl = getImageUrl(imageUrl);
-                  }
-
-                  return {
-                    id: item.id || item.product_id || item._id || 0,
-                    title: item.title || item.name || item.product_name || 'Product',
-                    price: item.actual_price || item.price || item.selling_price || item.amount || '₦0',
-                    image: imageUrl,
-                    category: item.category || item.product_category || item.category_name || category || 'Unknown',
-                    condition: item.condition || item.product_condition || 'Unknown',
-                    description: item.description || item.product_description || ''
-                  };
-                });
-                break;
-              }
+            } catch (e) {
+              imageUrl = item.image_url || item.image || item.product_image || null;
+              if (imageUrl) imageUrl = getImageUrl(imageUrl);
             }
-          } catch (endpointError) {
-            console.log('Search endpoint failed:', endpointError);
-            continue;
-          }
+
+            return {
+              id: item.id || item.product_id || item._id || 0,
+              title: item.title || item.name || item.product_name || 'Product',
+              price: item.actual_price || item.price || item.selling_price || item.amount || '₦0',
+              image: imageUrl,
+              category: item.category || item.product_category || item.category_name || 'Unknown',
+              condition: item.condition || item.product_condition || 'Unknown',
+              description: item.description || item.product_description || ''
+            };
+          });
         }
       }
 
       setSearchResults(results);
-      // Keep the dropdown open even if there are no results
       setShowSearchResults(true);
       if (results.length === 0) {
-        setSearchError(`No products found for "${cleanQuery}"${category ? ` in ${category}` : ''}`);
+        setSearchError(`No products found for "${cleanQuery}"${category ? ` in ${category}` : ''}. Try a different keyword.`);
       } else {
         setSearchError(null);
       }
     } catch (error) {
       console.error('Search error:', error);
       setSearchResults([]);
-      setShowSearchResults(true); // Keep open even on error
+      setShowSearchResults(true);
       setSearchError('Search failed. Please try again.');
     } finally {
       setSearchLoading(false);
     }
   };
 
-  // ========== SEARCH HANDLERS ==========
   const handleSearch = (e) => {
     e.preventDefault();
+    setShowSearchResults(true);
     if (searchQuery.trim()) {
-      // Always open the dropdown when searching
-      setShowSearchResults(true);
       searchProducts(searchQuery);
     } else {
-      // If search is empty, keep dropdown open if it was already open
-      setShowSearchResults(true);
       setSearchResults([]);
       setSearchError('Please enter a search term');
     }
@@ -840,7 +790,6 @@ export default function Header({ onModalStateChange }) {
     setSearchQuery('');
   };
 
-  // Close search dropdown only when clicking outside
   const handleCloseSearch = () => {
     setShowSearchResults(false);
   };
@@ -892,7 +841,8 @@ export default function Header({ onModalStateChange }) {
     <div className="relative w-full" ref={searchRef}>
       <AnimatePresence>
         {showSearchResults && (
-          <motion.div            initial={{ opacity: 0, y: -10, scale: 0.95 }}
+          <motion.div
+            initial={{ opacity: 0, y: -10, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -10, scale: 0.95 }}
             className="absolute top-full mt-2 w-full bg-white rounded-xl shadow-2xl border z-50 max-h-[500px] overflow-y-auto"
@@ -1248,20 +1198,17 @@ export default function Header({ onModalStateChange }) {
     return unsubscribe;
   }, [loadNotifications]);
 
-  // Click outside handlers - this is the only way the search closes
   useEffect(() => {
     const handleClickOutsideSearch = (event) => {
       if (searchRef.current && !searchRef.current.contains(event.target)) {
         setShowSearchResults(false);
       }
     };
-
     const handleClickOutsideNotification = (event) => {
       if (notificationRef.current && !notificationRef.current.contains(event.target)) {
         setShowNotifications(false);
       }
     };
-
     document.addEventListener('mousedown', handleClickOutsideSearch);
     document.addEventListener('mousedown', handleClickOutsideNotification);
     return () => {
@@ -1270,13 +1217,11 @@ export default function Header({ onModalStateChange }) {
     };
   }, []);
 
-  // Search debounce - don't close the dropdown
   useEffect(() => {
     const timer = setTimeout(() => {
       if (searchQuery.trim()) {
         searchProducts(searchQuery);
       } else {
-        // When search is empty, show empty state but keep dropdown open
         setSearchResults([]);
         setDetectedCategory(null);
         setSearchError('Type something to search');
@@ -1333,17 +1278,10 @@ export default function Header({ onModalStateChange }) {
                   value={searchQuery}
                   onChange={(e) => {
                     setSearchQuery(e.target.value);
-                    // Always show the dropdown when typing
                     setShowSearchResults(true);
                   }}
                   onFocus={() => {
-                    // Show dropdown when input is focused
-                    if (searchQuery.trim()) {
-                      setShowSearchResults(true);
-                    } else {
-                      setShowSearchResults(true);
-                      setSearchError('Type something to search');
-                    }
+                    setShowSearchResults(true);
                   }}
                   className="w-full px-4 py-2 rounded-lg bg-white/30 text-black border border-white/40 placeholder-black/70 focus:ring-2 focus:ring-yellow-400 outline-none shadow-inner backdrop-blur-md"
                 />
